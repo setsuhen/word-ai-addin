@@ -21,14 +21,29 @@ const getWord = () => window.Word || window.Office?.Word;
 
 // ==================== ACTIONS DEFINITION ====================
 const ACTIONS = {
-  analyze: { name: 'Analyze Writing Style', icon: '🔍', desc: 'Detect tone, voice, and patterns', base: 'Analyze the writing style and summarize findings.' },
-  grammar: { name: 'Grammar Check', icon: '✓', desc: 'Find and fix grammar issues', base: 'Check for grammar errors. Highlight issues and add comments with corrections.' },
-  spelling: { name: 'Spelling Check', icon: '📝', desc: 'Find spelling errors', base: 'Check for spelling errors. Highlight and comment with corrections.' },
-  formal: { name: 'Make Formal', icon: '👔', desc: 'Professional tone', base: 'Rewrite in formal, professional tone.' },
-  casual: { name: 'Make Casual', icon: '😊', desc: 'Conversational', base: 'Rewrite in casual, conversational tone.' },
-  clarity: { name: 'Improve Clarity', icon: '💡', desc: 'Easier to read', base: 'Improve clarity and readability.' },
-  concise: { name: 'Make Concise', icon: '✂️', desc: 'Remove fluff', base: 'Make more concise without losing meaning.' },
-  format: { name: 'Auto Format', icon: '🎨', desc: 'Apply formatting', base: 'Apply appropriate formatting, headings, and structure.' },
+  // === WRITING ANALYSIS ===
+  analyze: { name: 'Analyze Writing Style', icon: '🔍', desc: 'Detect tone, voice, and patterns', base: 'Analyze the writing style: tone, sentence structure, vocabulary level, voice (active/passive), and patterns. Summarize the detected style.' },
+  suggestions: { name: 'Get Suggestions', icon: '💬', desc: 'Improvement ideas', base: 'Provide suggestions for improvement. Don\'t make changes, just advise via comments.' },
+  
+  // === GRAMMAR & SPELLING ===
+  grammar: { name: 'Grammar Check', icon: '✓', desc: 'Find and fix grammar issues', base: 'Check for grammar errors. Highlight issues in yellow and add comments with corrections.' },
+  spelling: { name: 'Spelling Check', icon: '📝', desc: 'Find spelling errors', base: 'Check for spelling errors. Highlight misspellings in red and add comments with corrections.' },
+  
+  // === TONE ADJUSTMENTS ===
+  formal: { name: 'Make Formal', icon: '👔', desc: 'Professional, formal tone', base: 'Rewrite in a formal, professional tone. Avoid contractions, use complete sentences.' },
+  casual: { name: 'Make Casual', icon: '😊', desc: 'Friendly, conversational', base: 'Rewrite in a casual, conversational tone. Use contractions, everyday vocabulary.' },
+  professional: { name: 'Professional Tone', icon: '💼', desc: 'Business appropriate', base: 'Adjust to professional business tone. Clear, direct, action-oriented.' },
+  friendly: { name: 'Friendly Tone', icon: '🤝', desc: 'Warm and approachable', base: 'Rewrite with warm, friendly tone. Approachable and personable.' },
+  
+  // === CLARITY & LENGTH ===
+  clarity: { name: 'Improve Clarity', icon: '💡', desc: 'Clearer, easier to read', base: 'Improve clarity. Break up complex sentences, remove ambiguity, improve flow.' },
+  concise: { name: 'Make Concise', icon: '✂️', desc: 'Remove redundancy', base: 'Make more concise. Remove redundant words, filler, unnecessary qualifiers.' },
+  shorter: { name: 'Shorten', icon: '📉', desc: 'Reduce by 30-50%', base: 'Significantly shorten while keeping key points. Reduce by 30-50%.' },
+  longer: { name: 'Expand', icon: '📈', desc: 'Add detail and examples', base: 'Expand and elaborate. Add detail, examples, and supporting information.' },
+  
+  // === FORMATTING ===
+  format: { name: 'Auto Format', icon: '🎨', desc: 'Apply formatting', base: 'Apply appropriate formatting: headings, bold for emphasis, proper structure.' },
+  transform: { name: 'Transform Format', icon: '🔄', desc: 'Change structure', base: 'Transform the format: convert to bullets, numbered list, table, or other structure as appropriate.' },
   
   // === STYLE GUIDE BUTTONS ===
   occStyle: { 
@@ -190,17 +205,18 @@ const DEFAULT_CONFIG = {
 };
 
 const PRESETS = {
-  academic: { name: 'Academic', tone: 'authoritative', formality: 5, complexity: 16, voice: 'passive', jargon: 'high' },
-  marketing: { name: 'Marketing', tone: 'persuasive', formality: 2, structure: 'bullets', voice: 'active', jargon: 'none' },
-  eli5: { name: 'ELI5', tone: 'empathetic', formality: 1, complexity: 5, jargon: 'none', voice: 'active' }
+  academic: { name: 'Academic Rigor', tone: 'authoritative', formality: 5, complexity: 16, voice: 'passive', jargon: 'high', citation: 'apa' },
+  marketing: { name: 'Marketing Blast', tone: 'persuasive', formality: 2, structure: 'bullets', voice: 'active', jargon: 'none' },
+  eli5: { name: 'ELI5 Explainer', tone: 'empathetic', formality: 1, complexity: 5, jargon: 'none', voice: 'active' },
+  technical: { name: 'Technical Doc', tone: 'authoritative', formality: 4, complexity: 16, structure: 'numbered', jargon: 'high' }
 };
 
 const PREVIEW_EXAMPLES = {
   neutral: 'The system processes data efficiently.',
-  persuasive: 'Experience lightning-fast data processing!',
-  empathetic: 'We understand how important fast processing is.',
-  authoritative: 'The system implements high-efficiency protocols.',
-  witty: 'This bad boy crunches numbers faster than you can blink.'
+  persuasive: 'Experience lightning-fast data processing that transforms your workflow!',
+  empathetic: 'We understand how important fast data processing is for your success.',
+  authoritative: 'The system implements high-efficiency data processing protocols.',
+  witty: 'This bad boy crunches numbers faster than you can say "spreadsheet."'
 };
 
 // ==================== STORAGE ====================
