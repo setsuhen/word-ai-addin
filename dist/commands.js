@@ -1,0 +1,1 @@
+Office.onReady(o=>{o.host===Office.HostType.Word&&console.log("Word AI Add-in commands loaded")});

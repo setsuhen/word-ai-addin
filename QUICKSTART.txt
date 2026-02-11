@@ -1,0 +1,16 @@
+WORD AI ADD-IN - QUICK START
+============================
+
+1. Double-click Launch.bat
+
+2. When the dist folder opens and the server is running:
+   - Open Microsoft Word (desktop)
+   - Insert -> Add-ins -> Upload My Add-in
+   - Select manifest.xml from the dist folder
+   - Click Add
+
+3. Use it: Home tab -> AI Assistant -> enter your OpenAI API key
+
+That's it. Keep the Launch.bat window open while using the add-in.
+
+Requires: Node.js (https://nodejs.org), Microsoft Word, OpenAI API key
