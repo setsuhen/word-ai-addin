@@ -47,20 +47,20 @@
     
     .header-buttons {
       display: flex;
-      gap: 6px;
+      gap: 4px;
     }
     
     .header-btn {
       background: rgba(255,255,255,0.15);
       border: none;
       color: white;
-      padding: 5px 10px;
+      padding: 5px 8px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 10px;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
     }
     
     .header-btn:hover {
@@ -70,6 +70,10 @@
     .header-btn svg {
       width: 12px;
       height: 12px;
+    }
+    
+    .header-btn.icon-only {
+      padding: 5px 6px;
     }
     
     /* Panels */
@@ -243,7 +247,7 @@
       transform: translateX(18px);
     }
     
-    /* Privacy Info Box */
+    /* Info Box */
     .info-box {
       margin-top: 12px;
       padding: 10px;
@@ -254,20 +258,11 @@
       line-height: 1.5;
     }
     
-    .info-box.warning {
-      background: rgba(255, 152, 0, 0.15);
-      border-color: rgba(255, 152, 0, 0.3);
-    }
-    
     .info-box strong {
       color: #81c784;
     }
     
-    .info-box.warning strong {
-      color: #ffb74d;
-    }
-    
-    /* Clear Data Button */
+    /* Danger Button */
     .danger-btn {
       width: 100%;
       margin-top: 12px;
@@ -308,6 +303,11 @@
       letter-spacing: 0.5px;
     }
     
+    .quick-actions-controls {
+      display: flex;
+      gap: 8px;
+    }
+    
     .quick-actions-toggle {
       font-size: 10px;
       color: #0078d4;
@@ -315,6 +315,21 @@
       border: none;
       cursor: pointer;
       padding: 2px 6px;
+    }
+    
+    .quick-actions-edit {
+      font-size: 10px;
+      color: #ff9800;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+    
+    .quick-actions-edit.active {
+      background: #ff9800;
+      color: white;
+      border-radius: 4px;
     }
     
     .quick-actions-grid {
@@ -339,6 +354,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      position: relative;
     }
     
     .quick-btn:hover {
@@ -362,8 +378,172 @@
       background: linear-gradient(135deg, #106ebe 0%, #005a9e 100%);
     }
     
+    .quick-btn.customized::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 6px;
+      height: 6px;
+      background: #ff9800;
+      border-radius: 50%;
+    }
+    
+    .quick-btn.edit-mode {
+      border: 2px dashed #ff9800;
+    }
+    
+    .quick-btn.edit-mode:hover {
+      background: #fff3e0;
+    }
+    
     .quick-btn-icon {
       font-size: 14px;
+    }
+    
+    /* Edit Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .modal-overlay.open {
+      display: flex;
+    }
+    
+    .modal {
+      background: white;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    
+    .modal-header {
+      padding: 16px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #666;
+      padding: 4px;
+    }
+    
+    .modal-body {
+      padding: 16px;
+    }
+    
+    .modal-field {
+      margin-bottom: 16px;
+    }
+    
+    .modal-field:last-child {
+      margin-bottom: 0;
+    }
+    
+    .modal-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    
+    .modal-field input,
+    .modal-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    
+    .modal-field textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    .modal-field input:focus,
+    .modal-field textarea:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+    }
+    
+    .modal-field .hint {
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .modal-footer {
+      padding: 16px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .modal-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .modal-btn.primary {
+      background: #0078d4;
+      color: white;
+    }
+    
+    .modal-btn.primary:hover {
+      background: #106ebe;
+    }
+    
+    .modal-btn.secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .modal-btn.secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .modal-btn.danger {
+      background: none;
+      color: #f44336;
+    }
+    
+    .modal-btn.danger:hover {
+      background: #ffebee;
     }
     
     /* Chat */
@@ -544,6 +724,13 @@
       <div class="header-top">
         <h1>AI Writing Assistant</h1>
         <div class="header-buttons">
+          <button class="header-btn icon-only" id="popout-btn" title="Pop out to new window">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </button>
           <button class="header-btn" id="privacy-toggle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -615,10 +802,21 @@
           </label>
         </div>
         
+        <div class="toggle-row">
+          <div class="toggle-label">
+            <div class="toggle-label-title">Save Button Customizations</div>
+            <div class="toggle-label-desc">Remember your quick action tweaks</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="privacy-save-buttons">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
         <div class="info-box">
           <strong>How your data is handled:</strong><br>
           • All settings are stored <strong>only in your browser's local storage</strong><br>
-          • Document content is sent <strong>directly to your chosen AI provider</strong> (OpenAI, Google, etc.)<br>
+          • Document content is sent <strong>directly to your chosen AI provider</strong><br>
           • This add-in has <strong>no backend server</strong> - it's 100% client-side<br>
           • Nothing is ever sent to or stored on our servers
         </div>
@@ -633,7 +831,6 @@
         <div class="panel-title">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21"></path>
           </svg>
           AI Provider Settings
         </div>
@@ -677,57 +874,94 @@
     <div class="quick-actions">
       <div class="quick-actions-header">
         <span class="quick-actions-title">Quick Actions</span>
-        <button class="quick-actions-toggle" id="quick-toggle">Hide</button>
+        <div class="quick-actions-controls">
+          <button class="quick-actions-edit" id="edit-toggle">Edit</button>
+          <button class="quick-actions-toggle" id="quick-toggle">Hide</button>
+        </div>
       </div>
       <div class="quick-actions-grid" id="quick-grid">
         <button class="quick-btn primary" data-action="analyze">
           <span class="quick-btn-icon">🔍</span>
-          Analyze My Writing Style
+          <span class="quick-btn-text">Analyze My Writing Style</span>
         </button>
         <button class="quick-btn" data-action="grammar">
           <span class="quick-btn-icon">✓</span>
-          Grammar Check
+          <span class="quick-btn-text">Grammar Check</span>
         </button>
         <button class="quick-btn" data-action="spelling">
           <span class="quick-btn-icon">📝</span>
-          Spelling Check
+          <span class="quick-btn-text">Spelling Check</span>
         </button>
         <button class="quick-btn" data-action="formal">
           <span class="quick-btn-icon">👔</span>
-          Make Formal
+          <span class="quick-btn-text">Make Formal</span>
         </button>
         <button class="quick-btn" data-action="casual">
           <span class="quick-btn-icon">😊</span>
-          Make Casual
+          <span class="quick-btn-text">Make Casual</span>
         </button>
         <button class="quick-btn" data-action="professional">
           <span class="quick-btn-icon">💼</span>
-          Professional Tone
+          <span class="quick-btn-text">Professional Tone</span>
         </button>
         <button class="quick-btn" data-action="friendly">
           <span class="quick-btn-icon">🤝</span>
-          Friendly Tone
+          <span class="quick-btn-text">Friendly Tone</span>
         </button>
         <button class="quick-btn" data-action="clarity">
           <span class="quick-btn-icon">💡</span>
-          Improve Clarity
+          <span class="quick-btn-text">Improve Clarity</span>
         </button>
         <button class="quick-btn" data-action="concise">
           <span class="quick-btn-icon">✂️</span>
-          Make Concise
+          <span class="quick-btn-text">Make Concise</span>
         </button>
         <button class="quick-btn" data-action="shorter">
           <span class="quick-btn-icon">📉</span>
-          Shorten
+          <span class="quick-btn-text">Shorten</span>
         </button>
         <button class="quick-btn" data-action="longer">
           <span class="quick-btn-icon">📈</span>
-          Expand/Elaborate
+          <span class="quick-btn-text">Expand/Elaborate</span>
         </button>
         <button class="quick-btn" data-action="suggestions">
           <span class="quick-btn-icon">💬</span>
-          Get Suggestions
+          <span class="quick-btn-text">Get Suggestions</span>
         </button>
+      </div>
+    </div>
+    
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="edit-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span id="modal-icon">🔍</span>
+            <span>Customize Action</span>
+          </div>
+          <button class="modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label for="modal-name">Button Name</label>
+            <input type="text" id="modal-name" placeholder="Custom name (leave blank for default)">
+            <div class="hint">Optional: Give this action a custom name</div>
+          </div>
+          <div class="modal-field">
+            <label for="modal-extra">Additional Instructions</label>
+            <textarea id="modal-extra" placeholder="Add extra instructions that will be appended to the default prompt...&#10;&#10;Example: 'Focus only on the first paragraph' or 'Use British English'"></textarea>
+            <div class="hint">These instructions will be added to the end of the default prompt</div>
+          </div>
+          <div class="modal-field">
+            <label>Default Prompt (Read-only)</label>
+            <textarea id="modal-default" readonly style="background: #f5f5f5; color: #666; font-size: 11px;"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn danger" id="modal-reset">Reset to Default</button>
+          <button class="modal-btn secondary" id="modal-cancel">Cancel</button>
+          <button class="modal-btn primary" id="modal-save">Save</button>
+        </div>
       </div>
     </div>
     
