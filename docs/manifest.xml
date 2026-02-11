@@ -30,6 +30,7 @@
           <GetStarted>
             <Title resid="GetStartedTitle"/>
             <Description resid="GetStartedDescription"/>
+            <LearnMoreUrl resid="Taskpane.Url"/>
           </GetStarted>
           <FunctionFile resid="Commands.Url"/>
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
