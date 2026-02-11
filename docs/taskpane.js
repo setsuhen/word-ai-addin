@@ -154,83 +154,207 @@ const PROVIDERS = {
 
 // ==================== TOOLS ====================
 const TOOLS = [
-  { type: 'function', function: { name: 'replace_all_text', description: 'Find and replace text', parameters: { type: 'object', properties: { searchText: { type: 'string' }, replaceText: { type: 'string' } }, required: ['searchText', 'replaceText'] } } },
-  { type: 'function', function: { name: 'highlight_text', description: 'Highlight text with color', parameters: { type: 'object', properties: { searchText: { type: 'string' }, color: { type: 'string', enum: ['yellow', 'green', 'cyan', 'red', 'blue'] } }, required: ['searchText', 'color'] } } },
-  { type: 'function', function: { name: 'add_comment', description: 'Add comment to text', parameters: { type: 'object', properties: { searchText: { type: 'string' }, comment: { type: 'string' } }, required: ['searchText', 'comment'] } } },
-  { type: 'function', function: { name: 'insert_text', description: 'Insert text at position', parameters: { type: 'object', properties: { text: { type: 'string' }, position: { type: 'string', enum: ['start', 'end'] } }, required: ['text', 'position'] } } },
-  { type: 'function', function: { name: 'get_document_content', description: 'Get document text', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'delete_text', description: 'Delete all instances of text', parameters: { type: 'object', properties: { searchText: { type: 'string' } }, required: ['searchText'] } } }
+  { 
+    type: 'function', 
+    function: { 
+      name: 'get_document_content', 
+      description: 'Read and return the current text content of the Word document. ALWAYS call this first before making any edits.', 
+      parameters: { type: 'object', properties: {} } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'replace_all_text', 
+      description: 'Find all instances of searchText in the document and replace them with replaceText. Use this for making text changes, corrections, rewrites, etc.', 
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          searchText: { type: 'string', description: 'The exact text to find in the document' }, 
+          replaceText: { type: 'string', description: 'The text to replace it with' } 
+        }, 
+        required: ['searchText', 'replaceText'] 
+      } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'highlight_text', 
+      description: 'Highlight all instances of the specified text with a colored background. Use for marking errors, important text, or visual emphasis.', 
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          searchText: { type: 'string', description: 'The text to highlight' }, 
+          color: { type: 'string', enum: ['yellow', 'green', 'cyan', 'red', 'blue'], description: 'Highlight color: yellow (default), green, cyan, red, blue' } 
+        }, 
+        required: ['searchText', 'color'] 
+      } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'add_comment', 
+      description: 'Add a comment/annotation to specific text in the document. The comment appears in the margin next to the text.', 
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          searchText: { type: 'string', description: 'The text to attach the comment to' }, 
+          comment: { type: 'string', description: 'The comment text to display in the margin' } 
+        }, 
+        required: ['searchText', 'comment'] 
+      } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'insert_text', 
+      description: 'Insert new text at the beginning or end of the document.', 
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          text: { type: 'string', description: 'The text to insert' }, 
+          position: { type: 'string', enum: ['start', 'end'], description: 'Where to insert: start or end of document' } 
+        }, 
+        required: ['text', 'position'] 
+      } 
+    } 
+  },
+  { 
+    type: 'function', 
+    function: { 
+      name: 'delete_text', 
+      description: 'Delete all instances of the specified text from the document.', 
+      parameters: { 
+        type: 'object', 
+        properties: { 
+          searchText: { type: 'string', description: 'The exact text to delete' } 
+        }, 
+        required: ['searchText'] 
+      } 
+    } 
+  }
 ];
 
 const COLORS = { yellow: 'Yellow', green: 'BrightGreen', cyan: 'Turquoise', red: 'Red', blue: 'Blue' };
 
 async function execTool(name, args) {
   const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
+  if (!Word) return { success: false, message: 'Word API not available. Make sure you are in Word.' };
   
-  return Word.run(async ctx => {
-    const body = ctx.document.body;
-    
-    switch (name) {
-      case 'get_document_content':
-        body.load('text');
-        await ctx.sync();
-        return { success: true, content: (body.text || '').slice(0, 15000) };
+  try {
+    return await Word.run(async ctx => {
+      const body = ctx.document.body;
+      
+      switch (name) {
+        case 'get_document_content':
+          body.load('text');
+          await ctx.sync();
+          const text = body.text || '';
+          return { 
+            success: true, 
+            content: text.slice(0, 15000),
+            message: `Read ${text.length} characters from document`
+          };
+          
+        case 'replace_all_text': {
+          if (!args.searchText) return { success: false, message: 'searchText is required' };
+          const results = body.search(args.searchText, { matchCase: false });
+          results.load('items');
+          await ctx.sync();
+          const count = results.items.length;
+          if (count === 0) {
+            return { success: true, count: 0, message: `"${args.searchText}" not found in document` };
+          }
+          for (let i = count - 1; i >= 0; i--) {
+            results.items[i].insertText(args.replaceText || '', Word.InsertLocation.replace);
+          }
+          await ctx.sync();
+          return { 
+            success: true, 
+            count: count, 
+            message: `Replaced ${count} instance(s) of "${args.searchText}" with "${args.replaceText || '(deleted)'}"` 
+          };
+        }
         
-      case 'replace_all_text': {
-        const results = body.search(args.searchText, { matchCase: false });
-        results.load('items');
-        await ctx.sync();
-        for (let i = results.items.length - 1; i >= 0; i--) {
-          results.items[i].insertText(args.replaceText || '', Word.InsertLocation.replace);
+        case 'highlight_text': {
+          if (!args.searchText) return { success: false, message: 'searchText is required' };
+          const results = body.search(args.searchText, { matchCase: false });
+          results.load('items');
+          await ctx.sync();
+          const count = results.items.length;
+          if (count === 0) {
+            return { success: false, count: 0, message: `"${args.searchText}" not found in document` };
+          }
+          for (const item of results.items) {
+            item.font.highlightColor = COLORS[args.color] || 'Yellow';
+          }
+          await ctx.sync();
+          return { 
+            success: true, 
+            count: count, 
+            message: `Highlighted ${count} instance(s) of "${args.searchText}" in ${args.color || 'yellow'}` 
+          };
         }
-        await ctx.sync();
-        return { success: true, count: results.items.length };
-      }
-      
-      case 'highlight_text': {
-        const results = body.search(args.searchText, { matchCase: false });
-        results.load('items');
-        await ctx.sync();
-        for (const item of results.items) {
-          item.font.highlightColor = COLORS[args.color] || 'Yellow';
-        }
-        await ctx.sync();
-        return { success: true, count: results.items.length };
-      }
-      
-      case 'add_comment': {
-        const results = body.search(args.searchText, { matchCase: false });
-        results.load('items');
-        await ctx.sync();
-        if (results.items.length > 0) {
+        
+        case 'add_comment': {
+          if (!args.searchText) return { success: false, message: 'searchText is required' };
+          if (!args.comment) return { success: false, message: 'comment text is required' };
+          const results = body.search(args.searchText, { matchCase: false });
+          results.load('items');
+          await ctx.sync();
+          if (results.items.length === 0) {
+            return { success: false, message: `"${args.searchText}" not found in document` };
+          }
           results.items[0].insertComment(args.comment);
           await ctx.sync();
-          return { success: true };
+          return { 
+            success: true, 
+            message: `Added comment to "${args.searchText}": "${args.comment}"` 
+          };
         }
-        return { success: false, message: 'Text not found' };
-      }
-      
-      case 'insert_text':
-        body.insertText(args.text, args.position === 'start' ? Word.InsertLocation.start : Word.InsertLocation.end);
-        await ctx.sync();
-        return { success: true };
         
-      case 'delete_text': {
-        const results = body.search(args.searchText, { matchCase: false });
-        results.load('items');
-        await ctx.sync();
-        for (let i = results.items.length - 1; i >= 0; i--) {
-          results.items[i].insertText('', Word.InsertLocation.replace);
+        case 'insert_text': {
+          if (!args.text) return { success: false, message: 'text is required' };
+          const loc = args.position === 'start' ? Word.InsertLocation.start : Word.InsertLocation.end;
+          body.insertText(args.text, loc);
+          await ctx.sync();
+          return { 
+            success: true, 
+            message: `Inserted text at ${args.position || 'end'} of document` 
+          };
         }
-        await ctx.sync();
-        return { success: true, count: results.items.length };
+          
+        case 'delete_text': {
+          if (!args.searchText) return { success: false, message: 'searchText is required' };
+          const results = body.search(args.searchText, { matchCase: false });
+          results.load('items');
+          await ctx.sync();
+          const count = results.items.length;
+          if (count === 0) {
+            return { success: true, count: 0, message: `"${args.searchText}" not found in document` };
+          }
+          for (let i = count - 1; i >= 0; i--) {
+            results.items[i].insertText('', Word.InsertLocation.replace);
+          }
+          await ctx.sync();
+          return { 
+            success: true, 
+            count: count, 
+            message: `Deleted ${count} instance(s) of "${args.searchText}"` 
+          };
+        }
+        
+        default:
+          return { success: false, message: `Unknown tool: ${name}` };
       }
-      
-      default:
-        return { success: false, message: 'Unknown tool' };
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Tool execution error:', error);
+    return { success: false, message: `Error: ${error.message}` };
+  }
 }
 
 // ==================== CONTEXT AWARENESS ====================
@@ -313,7 +437,7 @@ function buildPrompt(actionKey, config) {
 }
 
 // ==================== API CALL ====================
-async function callAI(systemPrompt, userMessage) {
+async function callAIWithMessages(messages) {
   const provider = document.getElementById('provider').value;
   const apiKey = document.getElementById('api-key').value.trim();
   const localUrl = document.getElementById('local-url').value.trim();
@@ -324,11 +448,6 @@ async function callAI(systemPrompt, userMessage) {
   const cfg = PROVIDERS[provider];
   let url = typeof cfg.url === 'function' ? cfg.url(apiKey) : cfg.url;
   if (provider === 'local') url = localUrl;
-  
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userMessage }
-  ];
   
   const resp = await fetch(url, {
     method: 'POST',
@@ -350,50 +469,90 @@ async function runAction(actionKey, config) {
   
   const context = await getDocumentContext();
   const systemPrompt = buildPrompt(actionKey, config);
-  const userMessage = context || 'Please read the document and proceed with the action.';
+  const userMessage = context 
+    ? `Here is the document context:\n\n${context}\n\nPlease proceed with the action. Use the tools to make changes to the document.`
+    : 'Please use get_document_content to read the document first, then proceed with the action using the appropriate tools.';
   
-  let messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }];
+  let messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userMessage }
+  ];
   
   try {
     let processing = true;
     let iterations = 0;
-    const maxIterations = 10;
+    const maxIterations = 15;
     
     while (processing && iterations < maxIterations) {
       iterations++;
-      setStatus(`Processing (${iterations})...`);
+      setStatus(`Processing (step ${iterations})...`);
       
-      const response = await callAI(systemPrompt, messages[messages.length - 1].content);
+      const response = await callAIWithMessages(messages);
+      
+      if (!response) {
+        throw new Error('No response from AI');
+      }
       
       if (response.tool_calls?.length > 0) {
-        messages.push({ role: 'assistant', content: response.content || '', tool_calls: response.tool_calls });
+        // Add assistant message with tool calls
+        messages.push({ 
+          role: 'assistant', 
+          content: response.content || '', 
+          tool_calls: response.tool_calls 
+        });
         
+        // Execute each tool call
         for (const tc of response.tool_calls) {
           const name = tc.function?.name;
           let args = {};
           try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
           
-          setStatus(`Running ${name}...`);
-          addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 50)}...)`, 'Tool');
+          setStatus(`Executing: ${name}...`);
+          addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 80)}...)`, 'Tool');
           
           const result = await execTool(name, args);
-          messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+          
+          // Add tool result to messages
+          messages.push({ 
+            role: 'tool', 
+            tool_call_id: tc.id, 
+            content: JSON.stringify(result) 
+          });
+          
+          // Log result
+          if (result.success) {
+            addMessage('system', `✓ ${result.message || name + ' completed'}`, 'Result');
+          } else {
+            addMessage('error', `✗ ${result.message || 'Failed'}`, 'Result');
+          }
           
           // Save to history if it was a content change
-          if (name === 'replace_all_text' && result.success) {
+          if (name === 'replace_all_text' && result.success && result.count > 0) {
             addToHistory(actionKey, args.searchText, args.replaceText);
           }
         }
+        
+        // Continue the loop to let AI process results and potentially make more calls
       } else {
-        addMessage('assistant', response.content?.trim() || 'Done.', 'AI');
+        // No more tool calls - AI is done
+        if (response.content?.trim()) {
+          addMessage('assistant', response.content.trim(), 'AI');
+        } else {
+          addMessage('assistant', 'Done! Changes have been applied to your document.', 'AI');
+        }
         processing = false;
       }
     }
     
+    if (iterations >= maxIterations) {
+      addMessage('system', 'Reached maximum iterations. Some changes may be incomplete.', 'Warning');
+    }
+    
     setStatus('Ready');
   } catch (e) {
-    addMessage('error', e.message, 'Error');
+    addMessage('error', `Error: ${e.message}`, 'Error');
     setStatus('Error');
+    console.error(e);
   }
 }
 
@@ -907,27 +1066,113 @@ Office.onReady(info => {
     addMessage('user', text, 'You');
     
     const customPrompt = document.getElementById('custom-prompt').value;
-    const systemPrompt = `You are an AI writing assistant. ${customPrompt}\n\nAlways use get_document_content first to read the document.`;
+    const glossaryReplace = document.getElementById('glossary-replace').value;
+    const glossaryAvoid = document.getElementById('glossary-avoid').value;
+    
+    let systemPrompt = `You are an AI writing assistant that helps edit Word documents. You have access to these tools:
+- get_document_content: Read the document text
+- replace_all_text: Find and replace text
+- highlight_text: Highlight text with colors (yellow, green, cyan, red, blue)
+- add_comment: Add a comment to specific text
+- insert_text: Insert text at start or end of document
+- delete_text: Delete all instances of text
+
+IMPORTANT: You MUST use these tools to make changes to the document. The user cannot see your text responses as document changes - you must use the tools.
+
+When the user asks you to edit, highlight, comment, or modify the document:
+1. First use get_document_content to read what's in the document
+2. Then use the appropriate tools to make the changes
+3. Confirm what you did
+
+`;
+    
+    if (glossaryReplace) {
+      systemPrompt += `\nWORD REPLACEMENTS (always apply):\n`;
+      glossaryReplace.split('\n').forEach(line => {
+        const [old, neu] = line.split('→').map(s => s.trim());
+        if (old && neu) systemPrompt += `- Replace "${old}" with "${neu}"\n`;
+      });
+    }
+    
+    if (glossaryAvoid) {
+      systemPrompt += `\nWORDS TO AVOID:\n`;
+      glossaryAvoid.split('\n').forEach(word => {
+        if (word.trim()) systemPrompt += `- ${word.trim()}\n`;
+      });
+    }
+    
+    if (customPrompt) {
+      systemPrompt += `\nADDITIONAL INSTRUCTIONS:\n${customPrompt}\n`;
+    }
+    
+    let messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: text }
+    ];
     
     try {
-      setStatus('Thinking...');
-      const response = await callAI(systemPrompt, text);
+      let processing = true;
+      let iterations = 0;
+      const maxIterations = 15;
       
-      if (response.tool_calls?.length > 0) {
-        for (const tc of response.tool_calls) {
-          const name = tc.function?.name;
-          let args = {};
-          try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
-          setStatus(`Running ${name}...`);
-          await execTool(name, args);
+      while (processing && iterations < maxIterations) {
+        iterations++;
+        setStatus(`Processing (step ${iterations})...`);
+        
+        const response = await callAIWithMessages(messages);
+        
+        if (!response) {
+          throw new Error('No response from AI');
+        }
+        
+        if (response.tool_calls?.length > 0) {
+          messages.push({ 
+            role: 'assistant', 
+            content: response.content || '', 
+            tool_calls: response.tool_calls 
+          });
+          
+          for (const tc of response.tool_calls) {
+            const name = tc.function?.name;
+            let args = {};
+            try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+            
+            setStatus(`Executing: ${name}...`);
+            addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 80)}...)`, 'Tool');
+            
+            const result = await execTool(name, args);
+            
+            messages.push({ 
+              role: 'tool', 
+              tool_call_id: tc.id, 
+              content: JSON.stringify(result) 
+            });
+            
+            if (result.success) {
+              addMessage('system', `✓ ${result.message || name + ' completed'}${result.count !== undefined ? ` (${result.count} items)` : ''}`, 'Result');
+            } else {
+              addMessage('error', `✗ ${result.message || 'Failed'}`, 'Result');
+            }
+            
+            if (name === 'replace_all_text' && result.success && result.count > 0) {
+              addToHistory('chat', args.searchText, args.replaceText);
+            }
+          }
+        } else {
+          if (response.content?.trim()) {
+            addMessage('assistant', response.content.trim(), 'AI');
+          } else {
+            addMessage('assistant', 'Done!', 'AI');
+          }
+          processing = false;
         }
       }
       
-      addMessage('assistant', response.content?.trim() || 'Done.', 'AI');
       setStatus('Ready');
     } catch (e) {
-      addMessage('error', e.message, 'Error');
+      addMessage('error', `Error: ${e.message}`, 'Error');
       setStatus('Error');
+      console.error(e);
     }
   });
   
