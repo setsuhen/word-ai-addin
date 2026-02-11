@@ -17,6 +17,15 @@ const STORAGE = {
   versionHistory: 'word-ai-history'
 };
 
+const STORAGE_INPUT_MAP = {
+  'api-key': STORAGE.apiKey,
+  'local-url': STORAGE.localUrl,
+  'local-model': STORAGE.localModel,
+  'custom-prompt': STORAGE.customPrompt,
+  'glossary-replace': STORAGE.glossaryReplace,
+  'glossary-avoid': STORAGE.glossaryAvoid
+};
+
 const getWord = () => window.Word || window.Office?.Word;
 
 // ==================== ACTIONS DEFINITION ====================
@@ -748,7 +757,27 @@ CRITICAL RULES:
 }
 
 // ==================== API CALL ====================
-async function callAI(messages) {
+async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+function withTimeoutSignal(parentSignal, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const abortFromParent = () => ctrl.abort(parentSignal?.reason || new DOMException('Aborted', 'AbortError'));
+  if (parentSignal) {
+    if (parentSignal.aborted) abortFromParent();
+    else parentSignal.addEventListener('abort', abortFromParent, { once: true });
+  }
+  const timer = setTimeout(() => ctrl.abort(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs);
+  return {
+    signal: ctrl.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      if (parentSignal) parentSignal.removeEventListener('abort', abortFromParent);
+    }
+  };
+}
+
+async function callAI(messages, options = {}) {
+  const { signal, timeoutMs = 20000, retries = 2 } = options;
   const provider = document.getElementById('provider').value;
   const apiKey = document.getElementById('api-key').value.trim();
   const localUrl = document.getElementById('local-url').value.trim();
@@ -759,22 +788,52 @@ async function callAI(messages) {
   const cfg = PROVIDERS[provider];
   let url = typeof cfg.url === 'function' ? cfg.url(apiKey) : cfg.url;
   if (provider === 'local') url = localUrl;
-  
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: cfg.headers(apiKey),
-    body: JSON.stringify(cfg.format(messages, TOOLS, localModel))
-  });
-  
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${resp.status}`);
+
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, timeoutMs);
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: cfg.headers(apiKey),
+        body: JSON.stringify(cfg.format(messages, TOOLS, localModel)),
+        signal: timedSignal
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const retryAfter = Number(resp.headers.get('retry-after'));
+        const isRetryable = resp.status === 429 || resp.status >= 500;
+        if (isRetryable && attempt < retries) {
+          const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter * 1000
+            : Math.min(500 * (2 ** attempt), 4000) + Math.floor(Math.random() * 200);
+          await sleep(backoff);
+          continue;
+        }
+        throw new Error(err.error?.message || `API error ${resp.status}`);
+      }
+      return cfg.parse(await resp.json());
+    } catch (err) {
+      lastError = err;
+      if (timedSignal.aborted) throw err;
+      if (attempt >= retries) throw err;
+      await sleep(Math.min(500 * (2 ** attempt), 4000) + Math.floor(Math.random() * 200));
+    } finally {
+      cleanup();
+    }
   }
-  return cfg.parse(await resp.json());
+  throw lastError || new Error('AI request failed');
 }
 
 // ==================== RUN ACTION ====================
 async function runAction(actionKey, config) {
+  if (runAction._abortController) runAction._abortController.abort();
+  const abortController = new AbortController();
+  runAction._abortController = abortController;
+  runAction._runId = (runAction._runId || 0) + 1;
+  const currentRunId = runAction._runId;
+
   setStatus('Starting...');
   recentChanges = []; // Clear previous changes
   const context = await getDocumentContext();
@@ -791,7 +850,8 @@ async function runAction(actionKey, config) {
       iterations++;
       setStatus(`Processing (${iterations})...`);
       
-      const response = await callAI(messages);
+      const response = await callAI(messages, { signal: abortController.signal });
+      if (currentRunId !== runAction._runId) return;
       if (!response) throw new Error('No response');
       
       if (response.tool_calls?.length > 0) {
@@ -806,6 +866,7 @@ async function runAction(actionKey, config) {
           addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 60)}...)`, 'Tool');
           
           const result = await execTool(name, args);
+          if (currentRunId !== runAction._runId) return;
           messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
           
           if (result.success) {
@@ -826,8 +887,14 @@ async function runAction(actionKey, config) {
     }
     setStatus('Ready');
   } catch (e) {
+    if (abortController.signal.aborted || e.name === 'AbortError') {
+      setStatus('Cancelled');
+      return;
+    }
     addMessage('error', e.message, 'Error');
     setStatus('Error');
+  } finally {
+    if (runAction._runId === currentRunId) runAction._abortController = null;
   }
 }
 
@@ -985,7 +1052,7 @@ Office.onReady(info => {
   document.getElementById('local-settings').style.display = document.getElementById('provider').value === 'local' ? 'block' : 'none';
   
   ['api-key', 'local-url', 'local-model', 'custom-prompt', 'glossary-replace', 'glossary-avoid'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => saveData(STORAGE[id.replace(/-/g, '')] || STORAGE.apiKey, document.getElementById(id).value));
+    document.getElementById(id)?.addEventListener('change', () => saveData(STORAGE_INPUT_MAP[id], document.getElementById(id).value));
   });
   
   document.getElementById('privacy-save-key').addEventListener('change', e => { save(STORAGE.privacySaveKey, e.target.checked); if (!e.target.checked) localStorage.removeItem(STORAGE.apiKey); });
@@ -1043,8 +1110,17 @@ Office.onReady(info => {
   document.getElementById('api-key').addEventListener('input', updateSendBtn);
   
   sendBtn.addEventListener('click', async () => {
+    if (sendBtn.dataset.busy === 'true') return;
+    if (sendBtn._abortController) sendBtn._abortController.abort();
+    const abortController = new AbortController();
+    sendBtn._abortController = abortController;
+    sendBtn._runId = (sendBtn._runId || 0) + 1;
+    const currentRunId = sendBtn._runId;
+
     const text = userInput.value.trim();
     if (!text) return;
+    sendBtn.dataset.busy = 'true';
+    sendBtn.disabled = true;
     userInput.value = '';
     addMessage('user', text, 'You');
     
@@ -1086,7 +1162,8 @@ ${document.getElementById('custom-prompt').value || ''}`;
       while (iterations < 20) {
         iterations++;
         setStatus(`Working (${iterations})...`);
-        const response = await callAI(messages);
+        const response = await callAI(messages, { signal: abortController.signal });
+        if (currentRunId !== sendBtn._runId) return;
         if (!response) throw new Error('No response');
         
         if (response.tool_calls?.length > 0) {
@@ -1097,6 +1174,7 @@ ${document.getElementById('custom-prompt').value || ''}`;
             setStatus(`${name}...`);
             addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 60)}...)`, 'Tool');
             const result = await execTool(name, args);
+            if (currentRunId !== sendBtn._runId) return;
             messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
             addMessage(result.success ? 'system' : 'error', `${result.success ? '✓' : '✗'} ${result.message}`, result.success ? 'Done' : 'Error');
           }
@@ -1106,7 +1184,18 @@ ${document.getElementById('custom-prompt').value || ''}`;
         }
       }
       setStatus('Ready');
-    } catch (e) { addMessage('error', e.message, 'Error'); setStatus('Error'); }
+    } catch (e) {
+      if (abortController.signal.aborted || e.name === 'AbortError') {
+        setStatus('Cancelled');
+      } else {
+        addMessage('error', e.message, 'Error');
+        setStatus('Error');
+      }
+    } finally {
+      if (sendBtn._runId === currentRunId) sendBtn._abortController = null;
+      sendBtn.dataset.busy = 'false';
+      updateSendBtn();
+    }
   });
   
   userInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
