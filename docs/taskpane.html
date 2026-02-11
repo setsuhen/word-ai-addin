@@ -622,6 +622,22 @@
           </div>
         </div>
         
+        <!-- Export/Import -->
+        <div class="settings-section">
+          <div class="settings-section-title">💾 Backup & Restore</div>
+          <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Export your settings to a file, or import a previously saved configuration.</p>
+          <div style="display:flex;gap:8px;">
+            <button class="modal-btn primary" id="export-settings" style="flex:1;">
+              <span style="margin-right:4px;">📤</span> Export Settings
+            </button>
+            <label class="modal-btn secondary" style="flex:1;cursor:pointer;text-align:center;">
+              <span style="margin-right:4px;">📥</span> Import Settings
+              <input type="file" id="import-settings" accept=".json" style="display:none;">
+            </label>
+          </div>
+          <div id="import-status" style="margin-top:8px;font-size:11px;"></div>
+        </div>
+        
         <!-- Privacy -->
         <div class="settings-section">
           <div class="settings-section-title">🔒 Privacy</div>

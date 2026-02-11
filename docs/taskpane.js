@@ -744,6 +744,124 @@ Office.onReady(info => {
     }
   });
   
+  // Export settings
+  document.getElementById('export-settings').addEventListener('click', () => {
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      settings: {
+        apiKey: document.getElementById('api-key').value,
+        provider: document.getElementById('provider').value,
+        localUrl: document.getElementById('local-url').value,
+        localModel: document.getElementById('local-model').value,
+        customPrompt: document.getElementById('custom-prompt').value,
+        glossaryReplace: document.getElementById('glossary-replace').value,
+        glossaryAvoid: document.getElementById('glossary-avoid').value,
+        contextAwareness: document.getElementById('context-awareness').checked
+      },
+      actionConfigs: actionConfigs,
+      userPresets: userPresets
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `word-ai-settings-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    document.getElementById('import-status').innerHTML = '<span style="color:var(--success);">✓ Settings exported successfully!</span>';
+    setTimeout(() => document.getElementById('import-status').innerHTML = '', 3000);
+  });
+  
+  // Import settings
+  document.getElementById('import-settings').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const data = JSON.parse(event.target.result);
+        
+        if (!data.settings) {
+          throw new Error('Invalid settings file format');
+        }
+        
+        // Apply settings
+        if (data.settings.apiKey) {
+          document.getElementById('api-key').value = data.settings.apiKey;
+          save(STORAGE.apiKey, data.settings.apiKey);
+        }
+        if (data.settings.provider) {
+          document.getElementById('provider').value = data.settings.provider;
+          save(STORAGE.provider, data.settings.provider);
+          document.getElementById('local-settings').style.display = data.settings.provider === 'local' ? 'block' : 'none';
+        }
+        if (data.settings.localUrl) {
+          document.getElementById('local-url').value = data.settings.localUrl;
+          save(STORAGE.localUrl, data.settings.localUrl);
+        }
+        if (data.settings.localModel) {
+          document.getElementById('local-model').value = data.settings.localModel;
+          save(STORAGE.localModel, data.settings.localModel);
+        }
+        if (data.settings.customPrompt !== undefined) {
+          document.getElementById('custom-prompt').value = data.settings.customPrompt;
+          save(STORAGE.customPrompt, data.settings.customPrompt);
+        }
+        if (data.settings.glossaryReplace !== undefined) {
+          document.getElementById('glossary-replace').value = data.settings.glossaryReplace;
+          save(STORAGE.glossaryReplace, data.settings.glossaryReplace);
+        }
+        if (data.settings.glossaryAvoid !== undefined) {
+          document.getElementById('glossary-avoid').value = data.settings.glossaryAvoid;
+          save(STORAGE.glossaryAvoid, data.settings.glossaryAvoid);
+        }
+        if (data.settings.contextAwareness !== undefined) {
+          document.getElementById('context-awareness').checked = data.settings.contextAwareness;
+          save(STORAGE.contextAwareness, data.settings.contextAwareness);
+        }
+        
+        // Apply action configs
+        if (data.actionConfigs) {
+          actionConfigs = data.actionConfigs;
+          save(STORAGE.actionConfigs, actionConfigs);
+          renderActionsList();
+        }
+        
+        // Apply user presets
+        if (data.userPresets) {
+          userPresets = data.userPresets;
+          save(STORAGE.userPresets, userPresets);
+          
+          // Add presets to dropdown
+          const presetSelect = document.getElementById('modal-preset');
+          Object.entries(userPresets).forEach(([key, preset]) => {
+            if (!presetSelect.querySelector(`option[value="${key}"]`)) {
+              const opt = document.createElement('option');
+              opt.value = key;
+              opt.textContent = preset.name + ' (Custom)';
+              presetSelect.appendChild(opt);
+            }
+          });
+        }
+        
+        document.getElementById('import-status').innerHTML = '<span style="color:var(--success);">✓ Settings imported successfully!</span>';
+        setTimeout(() => document.getElementById('import-status').innerHTML = '', 3000);
+        
+      } catch (err) {
+        document.getElementById('import-status').innerHTML = `<span style="color:var(--danger);">✗ Error: ${err.message}</span>`;
+      }
+    };
+    
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
+  });
+  
   // History modal
   document.getElementById('history-btn').addEventListener('click', () => {
     renderHistory();
