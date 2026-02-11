@@ -227,6 +227,7 @@ const loadBool = (key, def = false) => localStorage.getItem(key) === 'true' || (
 let actionConfigs = {};
 let userPresets = {};
 let versionHistory = [];
+let recentChanges = []; // Track changes from quick actions for highlighting
 
 function loadAllData() {
   if (loadBool(STORAGE.privacySaveKey)) document.getElementById('api-key').value = load(STORAGE.apiKey, '');
@@ -302,6 +303,7 @@ const TOOLS = [
   // === DOCUMENT READING ===
   { type: 'function', function: { name: 'get_document_content', description: 'Read the entire document text. ALWAYS call this first before making edits.', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'get_selection', description: 'Get the currently selected text in the document.', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'get_recent_changes', description: 'Get a list of recent changes made by quick actions. Returns original text and replacement text for each change. Use this to know what was changed so you can highlight or reference them.', parameters: { type: 'object', properties: {} } } },
   
   // === TEXT EDITING ===
   { type: 'function', function: { name: 'replace_text', description: 'Find and replace text throughout the document.', parameters: { type: 'object', properties: { find: { type: 'string', description: 'Text to find' }, replace: { type: 'string', description: 'Replacement text' }, matchCase: { type: 'boolean', description: 'Case sensitive match' } }, required: ['find', 'replace'] } } },
@@ -432,6 +434,17 @@ async function execTool(name, args) {
           await ctx.sync();
           const words = (body.text || '').split(/\s+/).filter(w => w).length;
           return { success: true, info: { characters: body.text?.length || 0, words, paragraphs: paragraphs.count, tables: tables.count } };
+        }
+        
+        case 'get_recent_changes': {
+          if (recentChanges.length === 0) {
+            return { success: true, changes: [], message: 'No recent changes tracked. Run a quick action first.' };
+          }
+          return { 
+            success: true, 
+            changes: recentChanges.map(c => ({ original: c.original, replacement: c.replacement, action: c.action })),
+            message: `Found ${recentChanges.length} recent change(s). The NEW text (replacement) is what's currently in the document.`
+          };
         }
         
         // === TEXT EDITING ===
@@ -763,6 +776,7 @@ async function callAI(messages) {
 // ==================== RUN ACTION ====================
 async function runAction(actionKey, config) {
   setStatus('Starting...');
+  recentChanges = []; // Clear previous changes
   const context = await getDocumentContext();
   const systemPrompt = buildPrompt(actionKey, config);
   
@@ -802,6 +816,7 @@ async function runAction(actionKey, config) {
           
           if (name === 'replace_text' && result.count > 0) {
             addToHistory(actionKey, args.find, args.replace);
+            recentChanges.push({ action: actionKey, original: args.find, replacement: args.replace, count: result.count });
           }
         }
       } else {
@@ -1033,10 +1048,15 @@ Office.onReady(info => {
     userInput.value = '';
     addMessage('user', text, 'You');
     
+    const recentChangesInfo = recentChanges.length > 0 
+      ? `\n\nRECENT CHANGES FROM QUICK ACTIONS (the NEW text is what's in the document now):\n${recentChanges.map(c => `- Changed "${c.original}" → "${c.replacement}"`).join('\n')}\n\nTo highlight these changes, use format_text with highlightColor:'yellow' on the REPLACEMENT text (the new text that's now in the document).`
+      : '';
+    
     const systemPrompt = `You are an AI that DIRECTLY EDITS Word documents using tools. Changes you make appear IMMEDIATELY in the user's document.
 
 AVAILABLE TOOLS:
 - get_document_content: Read the document
+- get_recent_changes: Get list of changes made by quick actions (use to know what to highlight)
 - replace_text: Find & replace text  
 - format_text: Apply formatting (bold, italic, underline, colors, fonts, highlight, etc.)
 - format_paragraph: Alignment, spacing, indentation
@@ -1055,7 +1075,8 @@ RULES:
 2. ALL changes must use tools - don't just describe what to do
 3. Make changes directly to the document
 4. Be thorough and complete
-
+5. If user asks to "highlight changes", use get_recent_changes then format_text with highlightColor on the REPLACEMENT text
+${recentChangesInfo}
 ${document.getElementById('custom-prompt').value || ''}`;
 
     let messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: text }];
