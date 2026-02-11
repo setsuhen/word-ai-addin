@@ -28,7 +28,160 @@ const ACTIONS = {
   casual: { name: 'Make Casual', icon: '😊', desc: 'Conversational', base: 'Rewrite in casual, conversational tone.' },
   clarity: { name: 'Improve Clarity', icon: '💡', desc: 'Easier to read', base: 'Improve clarity and readability.' },
   concise: { name: 'Make Concise', icon: '✂️', desc: 'Remove fluff', base: 'Make more concise without losing meaning.' },
-  format: { name: 'Auto Format', icon: '🎨', desc: 'Apply formatting', base: 'Apply appropriate formatting, headings, and structure.' }
+  format: { name: 'Auto Format', icon: '🎨', desc: 'Apply formatting', base: 'Apply appropriate formatting, headings, and structure.' },
+  
+  // === STYLE GUIDE BUTTONS ===
+  occStyle: { 
+    name: 'OCC Style Format', 
+    icon: '🏥', 
+    desc: 'Apply VA OCC style guide', 
+    base: `Apply Office of Connected Care (OCC) Writing Style Guide formatting to this document.
+
+KEY OCC STYLE RULES TO APPLY:
+
+TERMINOLOGY CORRECTIONS (replace these):
+- "healthcare" → "health care" (two words, except in official names)
+- "the VA" → "VA" (never use "the" before VA)
+- "Veterans Administration" → "U.S. Department of Veterans Affairs" or "VA"
+- "patient" → "Veteran" (in Veteran-facing content)
+- "encounter" → "episode of care" (for telehealth)
+- "click" → "select" (preferred action verb)
+- "log in" → "sign in" (preferred)
+- "login" → "sign-in" (as modifier)
+- "doctor" → "provider" or "health care professional"
+- "clinical team" or "health care team" → "VA care team"
+- "teleprovider" → DO NOT USE (use "provider" or "health care professional")
+
+CAPITALIZATION:
+- "Veteran" - always capitalize the V
+- "Nation's Veterans" - capitalize when used together
+- "Service member" - capital S
+- Telespecialties: TeleDermatology, TeleAudiology, TeleMental Health, TeleWound Care, etc.
+- VA Video Connect (never abbreviate as VVC except for "VVC Now")
+- My HealtheVet (two words, never abbreviate as MHV)
+- Connected Care Academy (not "learning management system")
+
+ABBREVIATIONS:
+- Spell out on first reference, abbreviate in follow-up
+- Do NOT put abbreviation in parentheses after first spelling: "the U.S. Department of Veterans Affairs" then "VA" later
+- VISN does not need to be spelled out
+- VistA does not need to be spelled out
+
+FORMATTING:
+- Phone numbers: xxx-xxx-xxxx format with hyphens
+- "fiscal year" (spell out, FY acceptable in tables)
+- "internet" (lowercase)
+- "email" (no hyphen)
+- "website" (one word, lowercase)
+- "app" not "application" (except "WebVRAM application")
+
+Make all necessary replacements throughout the document.` 
+  },
+  
+  occCheck: { 
+    name: 'OCC Compliance Check', 
+    icon: '✅', 
+    desc: 'Check OCC style compliance', 
+    base: `Review this document for Office of Connected Care (OCC) Style Guide compliance. For each violation found, highlight the text in yellow and add a comment explaining the issue and correction.
+
+CHECK FOR THESE COMMON VIOLATIONS:
+
+1. TERMINOLOGY ERRORS:
+   - "healthcare" should be "health care"
+   - "the VA" should be just "VA"
+   - "Veterans Administration" is incorrect
+   - "click" should be "select"
+   - "log in/login" should be "sign in/sign-in"
+   - "doctor" should be "provider" or "health care professional"
+   - "encounter" should be "episode of care" (for telehealth)
+   - "clinical team" should be "VA care team"
+
+2. CAPITALIZATION ERRORS:
+   - "veteran" should be "Veteran"
+   - Telespecialties must be capitalized: TeleDermatology, TeleAudiology, etc.
+   - "My healthevet" should be "My HealtheVet"
+
+3. ABBREVIATION ERRORS:
+   - VVC used (should spell out "VA Video Connect")
+   - MHV used (should spell out "My HealtheVet")
+   - Abbreviation in parentheses after first use (remove parentheses)
+
+4. FORMATTING ERRORS:
+   - Phone numbers not in xxx-xxx-xxxx format
+   - "Internet" capitalized (should be lowercase)
+   - "e-mail" hyphenated (should be "email")
+   - "web site" as two words (should be "website")
+
+5. PROHIBITED TERMS:
+   - "teleprovider" (use "provider" instead)
+   - "our Veterans" (say "Veterans" or "Nation's Veterans")
+   - "Clinical Video Telehealth" (now "Synchronous Telehealth")
+   - "Store-and-Forward Telehealth" (now "Asynchronous Telehealth")
+
+Highlight each violation and add a comment with the correct usage.` 
+  },
+  
+  apStyle: { 
+    name: 'AP Style Format', 
+    icon: '📰', 
+    desc: 'Apply AP Stylebook rules', 
+    base: `Apply Associated Press (AP) Stylebook formatting rules to this document.
+
+KEY AP STYLE RULES TO APPLY:
+
+NUMBERS:
+- Spell out one through nine
+- Use numerals for 10 and above
+- Always use numerals for ages: "a 5-year-old child"
+- Always use numerals for percentages: "5 percent" (spell out "percent")
+- Money: $1 million (not $1,000,000), $500,000
+- Dimensions: 5 feet 6 inches tall
+
+DATES AND TIMES:
+- Abbreviate months with dates: Jan. 15, Feb. 20, March 5 (spell out March, April, May, June, July)
+- No "th" or "nd": "Jan. 15" not "Jan. 15th"
+- Times: 9 a.m., 4:30 p.m. (lowercase with periods)
+- Use "noon" and "midnight" not "12 p.m." or "12 a.m."
+- Years: 2024 (no apostrophe for decades: 1990s not 1990's)
+
+TITLES:
+- Capitalize formal titles before names: President Biden, Dr. Smith
+- Lowercase after names or standing alone: Joe Biden, president of the United States
+- Abbreviate certain titles before names: Dr., Gov., Lt. Gov., Rep., Sen., Rev.
+
+PUNCTUATION:
+- NO Oxford comma (serial comma) unless needed for clarity
+- Periods and commas go INSIDE quotation marks
+- Colons and semicolons go OUTSIDE quotation marks
+- Single space after periods
+
+WORDS AND PHRASES:
+- "health care" (two words)
+- "email" (no hyphen)
+- "internet" (lowercase)
+- "website" (one word, lowercase)
+- "cellphone" (one word)
+- "fundraising, fundraiser" (one word)
+- "percent" (spell out, not %)
+- "their" as singular (for gender-neutral)
+
+ABBREVIATIONS:
+- Spell out on first reference
+- U.S. as adjective: "U.S. government"
+- United States as noun: "in the United States"
+- State abbreviations after city names (use AP abbreviations, not postal): Ala., Ariz., Ark., Calif., Colo., Conn., Del., Fla., Ga., Ill., Ind., Kan., Ky., La., Md., Mass., Mich., Minn., Miss., Mo., Mont., Neb., Nev., N.H., N.J., N.M., N.Y., N.C., N.D., Okla., Ore., Pa., R.I., S.C., S.D., Tenn., Vt., Va., Wash., W.Va., Wis., Wyo.
+- Spell out Alaska, Hawaii, Idaho, Iowa, Maine, Ohio, Texas, Utah
+
+ACADEMIC DEGREES:
+- Use periods: Ph.D., M.A., B.A., M.D.
+- Offset with commas: "John Smith, Ph.D., spoke at the event."
+
+HYPHENS:
+- Compound modifiers before nouns: "full-time employee" but "works full time"
+- No hyphen with -ly adverbs: "newly elected official"
+
+Make all necessary corrections throughout the document.` 
+  }
 };
 
 const DEFAULT_CONFIG = {
