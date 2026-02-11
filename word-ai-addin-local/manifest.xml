@@ -4,23 +4,24 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" 
   xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" 
   xsi:type="TaskPaneApp">
-  <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
-  <Version>1.0.0.0</Version>
+  <Id>5f8a02c3-9b1d-4e2f-8a1b-7c9d0e3f4a5b</Id>
+  <Version>1.0.0.1</Version>
   <ProviderName>Word AI Add-in</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Word AI Assistant"/>
-  <Description DefaultValue="Edit your Word document with AI. Chat with the AI and watch it make edits in real-time."/>
-  <IconUrl DefaultValue="http://localhost:3000/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="http://localhost:3000/assets/icon-80.png"/>
-  <SupportUrl DefaultValue="https://github.com"/>
+  <Description DefaultValue="Edit your Word document with AI."/>
+  <IconUrl DefaultValue="https://setsuhen.github.io/word-ai-addin/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://setsuhen.github.io/word-ai-addin/assets/icon-80.png"/>
+  <SupportUrl DefaultValue="https://github.com/setsuhen/word-ai-addin"/>
   <AppDomains>
     <AppDomain>https://api.openai.com</AppDomain>
+    <AppDomain>https://setsuhen.github.io</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Document"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="http://localhost:3000/taskpane.html"/>
+    <SourceLocation DefaultValue="https://setsuhen.github.io/word-ai-addin/taskpane.html"/>
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
@@ -65,20 +66,20 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="http://localhost:3000/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="http://localhost:3000/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="http://localhost:3000/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://setsuhen.github.io/word-ai-addin/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://setsuhen.github.io/word-ai-addin/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://setsuhen.github.io/word-ai-addin/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="GetStartedTitle" DefaultValue="http://localhost:3000/taskpane.html"/>
-        <bt:Url id="GetStartedDescription" DefaultValue="http://localhost:3000/taskpane.html"/>
-        <bt:Url id="Commands.Url" DefaultValue="http://localhost:3000/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="http://localhost:3000/taskpane.html"/>
+        <bt:Url id="GetStartedTitle" DefaultValue="https://setsuhen.github.io/word-ai-addin/taskpane.html"/>
+        <bt:Url id="GetStartedDescription" DefaultValue="https://setsuhen.github.io/word-ai-addin/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://setsuhen.github.io/word-ai-addin/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://setsuhen.github.io/word-ai-addin/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="Word AI"/>
         <bt:String id="TaskpaneButtonLabel" DefaultValue="AI Assistant"/>
-        <bt:String id="TaskpaneButtonTooltip" DefaultValue="Open AI chat to edit your document"/>
+        <bt:String id="TaskpaneButtonTooltip" DefaultValue="Open AI chat"/>
       </bt:ShortStrings>
     </Resources>
   </VersionOverrides>
