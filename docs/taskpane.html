@@ -1,1 +1,332 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Word AI Assistant</title><script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script><script defer="defer" src="taskpane.js"></script></head><body><div id="app"><header class="header"><h1>AI Assistant</h1><p class="subtitle">Edit your document through natural language</p><div id="api-key-section" class="api-key-section"><label for="api-key">OpenAI API Key:</label> <input type="password" id="api-key" placeholder="sk-..." autocomplete="off"> <span class="hint">Stored locally, never sent anywhere except OpenAI</span></div></header><div class="chat-container"><div id="messages" class="messages"></div><div class="input-area"><textarea id="user-input" placeholder="e.g. Delete every instance of the word 'square', or Replace 'teh' with 'the'..." rows="2"></textarea> <button id="send-btn" class="send-btn" disabled="disabled"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send</button></div></div><div id="status" class="status"></div></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word AI Assistant</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
+      color: #1a1a1a;
+      background: #f5f5f7;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    /* Header */
+    .header {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+      color: white;
+      flex-shrink: 0;
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .settings-toggle {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .settings-toggle:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    
+    .settings-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+    
+    /* Settings Panel */
+    .settings-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      margin-top: 0;
+    }
+    
+    .settings-panel.open {
+      max-height: 300px;
+      margin-top: 12px;
+      padding: 12px;
+    }
+    
+    .setting-row {
+      margin-bottom: 10px;
+    }
+    
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .setting-row label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+    
+    .setting-row select,
+    .setting-row input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 13px;
+    }
+    
+    .setting-row select option {
+      background: #2d2d2d;
+      color: white;
+    }
+    
+    .setting-row input::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+    
+    .setting-row input:focus,
+    .setting-row select:focus {
+      outline: none;
+      border-color: #4a9eff;
+    }
+    
+    .hint {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    .local-settings {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .local-settings.visible {
+      display: block;
+    }
+    
+    /* Chat */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 12px;
+    }
+    
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 8px;
+    }
+    
+    .message {
+      padding: 10px 14px;
+      border-radius: 12px;
+      max-width: 95%;
+      line-height: 1.5;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message.user {
+      align-self: flex-end;
+      background: #0078d4;
+      color: white;
+    }
+    
+    .message.assistant {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    
+    .message.system {
+      align-self: center;
+      background: #f0f0f0;
+      color: #666;
+      font-size: 12px;
+      text-align: center;
+    }
+    
+    .message.error {
+      background: #fde8e8;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    
+    /* Input area */
+    .input-area {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-shrink: 0;
+      padding-top: 8px;
+      border-top: 1px solid #e5e5e5;
+    }
+    
+    .input-area textarea {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      resize: none;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.4;
+      max-height: 100px;
+    }
+    
+    .input-area textarea:focus {
+      outline: none;
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+    }
+    
+    .send-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    
+    .send-btn:hover:not(:disabled) {
+      background: #106ebe;
+    }
+    
+    .send-btn:disabled {
+      background: #c0c0c0;
+      cursor: not-allowed;
+    }
+    
+    .send-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    /* Status */
+    .status {
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #666;
+      flex-shrink: 0;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-top">
+        <h1>AI Assistant</h1>
+        <button class="settings-toggle" id="settings-toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Settings
+        </button>
+      </div>
+      
+      <div class="settings-panel" id="settings-panel">
+        <div class="setting-row">
+          <label for="provider">AI Provider</label>
+          <select id="provider">
+            <option value="openai">OpenAI (GPT-4o)</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="claude">Anthropic Claude</option>
+            <option value="local">Local / Custom</option>
+          </select>
+        </div>
+        
+        <div class="setting-row">
+          <label for="api-key">API Key</label>
+          <input type="password" id="api-key" placeholder="Enter your API key..." autocomplete="off">
+          <div class="hint">Stored locally in your browser</div>
+        </div>
+        
+        <div class="local-settings" id="local-settings">
+          <div class="setting-row">
+            <label for="local-url">API Endpoint URL</label>
+            <input type="text" id="local-url" placeholder="http://localhost:1234/v1/chat/completions">
+          </div>
+          <div class="setting-row">
+            <label for="local-model">Model Name</label>
+            <input type="text" id="local-model" placeholder="local-model">
+          </div>
+        </div>
+      </div>
+    </header>
+    
+    <div class="chat-container">
+      <div id="messages" class="messages"></div>
+      <div class="input-area">
+        <textarea id="user-input" placeholder="e.g. Highlight all instances of 'important' in yellow, or Add a comment to the first paragraph..." rows="2"></textarea>
+        <button id="send-btn" class="send-btn" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+  
+  <script src="taskpane.js"></script>
+</body>
+</html>
