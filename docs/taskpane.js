@@ -1,1054 +1,824 @@
-// Word AI Assistant - Multi-Provider Support with Writing Tools
-// Supports: OpenAI, Google Gemini, Anthropic Claude, Local models
-// Privacy: All data goes directly to your chosen AI provider - no external storage
+// Word AI Assistant - Professional Writing Tool
+// Full-featured quick actions with comprehensive customization
 
-const STORAGE_KEYS = {
-  // Privacy settings
-  privacySaveKey: 'word-ai-privacy-save-key',
-  privacySavePrompt: 'word-ai-privacy-save-prompt',
-  privacySaveStyle: 'word-ai-privacy-save-style',
-  privacySaveProvider: 'word-ai-privacy-save-provider',
-  privacySaveButtons: 'word-ai-privacy-save-buttons',
-  // Data
+const STORAGE = {
+  apiKey: 'word-ai-key',
   provider: 'word-ai-provider',
-  apiKey: 'word-ai-api-key',
   localUrl: 'word-ai-local-url',
   localModel: 'word-ai-local-model',
-  customPrompt: 'word-ai-custom-prompt',
-  writingStyle: 'word-ai-writing-style',
-  buttonCustomizations: 'word-ai-button-customizations'
+  customPrompt: 'word-ai-prompt',
+  glossaryReplace: 'word-ai-glossary-replace',
+  glossaryAvoid: 'word-ai-glossary-avoid',
+  actionConfigs: 'word-ai-action-configs',
+  userPresets: 'word-ai-user-presets',
+  privacySaveKey: 'word-ai-priv-key',
+  privacySavePresets: 'word-ai-priv-presets',
+  contextAwareness: 'word-ai-context',
+  versionHistory: 'word-ai-history'
 };
 
-// Get Word API reference
 const getWord = () => window.Word || window.Office?.Word;
 
-// ============== Privacy Helpers ==============
-
-function getPrivacySetting(key) {
-  return localStorage.getItem(key) === 'true';
-}
-
-function setPrivacySetting(key, value) {
-  localStorage.setItem(key, value ? 'true' : 'false');
-}
-
-function saveIfAllowed(key, value, privacyKey) {
-  if (getPrivacySetting(privacyKey)) {
-    localStorage.setItem(key, value);
-  } else {
-    localStorage.removeItem(key);
-  }
-}
-
-function loadIfAllowed(key, privacyKey, defaultValue = '') {
-  if (getPrivacySetting(privacyKey)) {
-    return localStorage.getItem(key) || defaultValue;
-  }
-  return defaultValue;
-}
-
-function clearAllData() {
-  localStorage.removeItem(STORAGE_KEYS.provider);
-  localStorage.removeItem(STORAGE_KEYS.apiKey);
-  localStorage.removeItem(STORAGE_KEYS.localUrl);
-  localStorage.removeItem(STORAGE_KEYS.localModel);
-  localStorage.removeItem(STORAGE_KEYS.customPrompt);
-  localStorage.removeItem(STORAGE_KEYS.writingStyle);
-  localStorage.removeItem(STORAGE_KEYS.buttonCustomizations);
-}
-
-// ============== Default Quick Action Prompts ==============
-
-const DEFAULT_PROMPTS = {
-  analyze: {
-    name: 'Analyze My Writing Style',
-    icon: '🔍',
-    prompt: `Please analyze the writing style of this document. Look at:
-1. Tone (formal, casual, professional, academic, etc.)
-2. Sentence structure and complexity
-3. Vocabulary level
-4. Voice (active vs passive)
-5. Any patterns or habits
-
-After analyzing, remember this style so you can mimic it when making future edits. Give me a summary of the writing style you detected.`
-  },
-  grammar: {
-    name: 'Grammar Check',
-    icon: '✓',
-    prompt: `Please check the entire document for grammar errors. For each error found:
-1. Highlight the problematic text in yellow
-2. Add a comment explaining the grammar issue and the correction
-
-After checking, give me a summary of how many issues were found.`
-  },
-  spelling: {
-    name: 'Spelling Check',
-    icon: '📝',
-    prompt: `Please check the entire document for spelling errors and typos. For each error found:
-1. Highlight the misspelled word in red
-2. Add a comment with the correct spelling
-
-After checking, give me a summary of what was found.`
-  },
-  formal: {
-    name: 'Make Formal',
-    icon: '👔',
-    prompt: `Please rewrite the document content to use a formal, professional tone. Make these changes:
-- Replace casual language with formal alternatives
-- Use complete sentences
-- Avoid contractions
-- Use professional vocabulary
-- Maintain a respectful, businesslike tone
-
-Make the edits directly to the document.`
-  },
-  casual: {
-    name: 'Make Casual',
-    icon: '😊',
-    prompt: `Please rewrite the document content to use a casual, conversational tone. Make these changes:
-- Use contractions where natural
-- Simplify complex sentences
-- Use everyday vocabulary
-- Make it sound like a friendly conversation
-- Keep it approachable and relaxed
-
-Make the edits directly to the document.`
-  },
-  professional: {
-    name: 'Professional Tone',
-    icon: '💼',
-    prompt: `Please adjust the document to have a professional business tone. This means:
-- Clear and direct communication
-- Appropriate formality without being stiff
-- Action-oriented language
-- Confident but not arrogant
-- Industry-appropriate terminology
-
-Make the edits directly to the document.`
-  },
-  friendly: {
-    name: 'Friendly Tone',
-    icon: '🤝',
-    prompt: `Please rewrite the document to have a warm, friendly tone. This means:
-- Approachable and personable language
-- Showing empathy and understanding
-- Using inclusive language (we, us)
-- Being helpful and supportive
-- Adding warmth without being unprofessional
-
-Make the edits directly to the document.`
-  },
-  clarity: {
-    name: 'Improve Clarity',
-    icon: '💡',
-    prompt: `Please improve the clarity of this document. Focus on:
-- Breaking up long, complex sentences
-- Removing ambiguous phrases
-- Making the main points obvious
-- Using clearer word choices
-- Improving logical flow
-- Adding transitions where needed
-
-Highlight any sections you changed in cyan and add comments explaining your improvements.`
-  },
-  concise: {
-    name: 'Make Concise',
-    icon: '✂️',
-    prompt: `Please make this document more concise without losing meaning. Focus on:
-- Removing redundant words and phrases
-- Eliminating filler words
-- Combining sentences where appropriate
-- Getting to the point faster
-- Removing unnecessary qualifiers
-
-Make the edits directly to the document.`
-  },
-  shorter: {
-    name: 'Shorten',
-    icon: '📉',
-    prompt: `Please significantly shorten this document while keeping the key points. Aim to reduce the length by about 30-50%. Remove:
-- Redundant information
-- Excessive examples
-- Unnecessary elaboration
-- Filler content
-
-Make the edits directly to the document.`
-  },
-  longer: {
-    name: 'Expand/Elaborate',
-    icon: '📈',
-    prompt: `Please expand and elaborate on this document. For each main point:
-- Add more detail and explanation
-- Include examples where helpful
-- Expand on implications
-- Add supporting information
-
-Make the additions directly to the document.`
-  },
-  suggestions: {
-    name: 'Get Suggestions',
-    icon: '💬',
-    prompt: `Please read through this document and provide suggestions for improvement. Consider:
-- Overall structure and organization
-- Clarity and readability
-- Tone consistency
-- Missing information
-- Areas that could be stronger
-
-Give me your suggestions as a list. Don't make changes yet - just tell me what you'd recommend.`
-  }
+// ==================== ACTIONS DEFINITION ====================
+const ACTIONS = {
+  analyze: { name: 'Analyze Writing Style', icon: '🔍', desc: 'Detect tone, voice, and patterns', base: 'Analyze the writing style: tone, sentence structure, vocabulary level, voice (active/passive), and patterns. Summarize the detected style.' },
+  grammar: { name: 'Grammar Check', icon: '✓', desc: 'Find and fix grammar issues', base: 'Check for grammar errors. Highlight issues in yellow and add comments with corrections.' },
+  spelling: { name: 'Spelling Check', icon: '📝', desc: 'Find spelling errors', base: 'Check for spelling errors. Highlight misspellings in red and add comments with corrections.' },
+  formal: { name: 'Make Formal', icon: '👔', desc: 'Professional, formal tone', base: 'Rewrite in a formal, professional tone. Avoid contractions, use complete sentences.' },
+  casual: { name: 'Make Casual', icon: '😊', desc: 'Friendly, conversational', base: 'Rewrite in a casual, conversational tone. Use contractions, everyday vocabulary.' },
+  professional: { name: 'Professional Tone', icon: '💼', desc: 'Business appropriate', base: 'Adjust to professional business tone. Clear, direct, action-oriented.' },
+  friendly: { name: 'Friendly Tone', icon: '🤝', desc: 'Warm and approachable', base: 'Rewrite with warm, friendly tone. Approachable and personable.' },
+  clarity: { name: 'Improve Clarity', icon: '💡', desc: 'Clearer, easier to read', base: 'Improve clarity. Break up complex sentences, remove ambiguity, improve flow.' },
+  concise: { name: 'Make Concise', icon: '✂️', desc: 'Remove redundancy', base: 'Make more concise. Remove redundant words, filler, unnecessary qualifiers.' },
+  shorter: { name: 'Shorten', icon: '📉', desc: 'Reduce by 30-50%', base: 'Significantly shorten while keeping key points. Reduce by 30-50%.' },
+  longer: { name: 'Expand', icon: '📈', desc: 'Add detail and examples', base: 'Expand and elaborate. Add detail, examples, and supporting information.' },
+  suggestions: { name: 'Get Suggestions', icon: '💬', desc: 'Improvement ideas', base: 'Provide suggestions for improvement. Don\'t make changes, just advise.' },
+  transform: { name: 'Transform Format', icon: '🔄', desc: 'Change structure', base: 'Transform the format as specified.' }
 };
 
-// Button customizations (loaded from storage)
-let buttonCustomizations = {};
+// Default config for each action
+const DEFAULT_CONFIG = {
+  tone: 'neutral',
+  length: 'maintain',
+  formality: 3,
+  structure: 'paragraphs',
+  complexity: 12,
+  instructions: '',
+  jargon: 'standard',
+  voice: 'mixed',
+  revision: 2,
+  citation: 'none'
+};
 
-function loadButtonCustomizations() {
-  const saved = loadIfAllowed(STORAGE_KEYS.buttonCustomizations, STORAGE_KEYS.privacySaveButtons, '{}');
-  try {
-    buttonCustomizations = JSON.parse(saved);
-  } catch (e) {
-    buttonCustomizations = {};
+// Built-in presets
+const PRESETS = {
+  academic: { name: 'Academic Rigor', tone: 'authoritative', formality: 5, complexity: 16, voice: 'passive', jargon: 'high', citation: 'apa' },
+  marketing: { name: 'Marketing Blast', tone: 'persuasive', formality: 2, structure: 'bullets', voice: 'active', jargon: 'none' },
+  eli5: { name: 'ELI5 Explainer', tone: 'empathetic', formality: 1, complexity: 5, jargon: 'none', voice: 'active' },
+  technical: { name: 'Technical Doc', tone: 'authoritative', formality: 4, complexity: 16, structure: 'numbered', jargon: 'high' }
+};
+
+// Live preview examples based on settings
+const PREVIEW_EXAMPLES = {
+  neutral: 'The system processes data efficiently.',
+  persuasive: 'Experience lightning-fast data processing that transforms your workflow!',
+  empathetic: 'We understand how important fast data processing is for your success.',
+  authoritative: 'The system implements high-efficiency data processing protocols.',
+  witty: 'This bad boy crunches numbers faster than you can say "spreadsheet."'
+};
+
+// ==================== STORAGE HELPERS ====================
+const save = (key, val) => localStorage.setItem(key, typeof val === 'object' ? JSON.stringify(val) : val);
+const load = (key, def = '') => {
+  const v = localStorage.getItem(key);
+  if (!v) return def;
+  try { return JSON.parse(v); } catch { return v; }
+};
+const loadBool = (key, def = false) => localStorage.getItem(key) === 'true' || (localStorage.getItem(key) === null && def);
+
+let actionConfigs = {};
+let userPresets = {};
+let versionHistory = [];
+
+function loadAllData() {
+  if (loadBool(STORAGE.privacySaveKey)) {
+    document.getElementById('api-key').value = load(STORAGE.apiKey, '');
   }
+  document.getElementById('provider').value = load(STORAGE.provider, 'openai');
+  document.getElementById('local-url').value = load(STORAGE.localUrl, 'http://localhost:1234/v1/chat/completions');
+  document.getElementById('local-model').value = load(STORAGE.localModel, '');
+  document.getElementById('custom-prompt').value = load(STORAGE.customPrompt, '');
+  document.getElementById('glossary-replace').value = load(STORAGE.glossaryReplace, '');
+  document.getElementById('glossary-avoid').value = load(STORAGE.glossaryAvoid, '');
+  document.getElementById('privacy-save-key').checked = loadBool(STORAGE.privacySaveKey);
+  document.getElementById('privacy-save-presets').checked = loadBool(STORAGE.privacySavePresets, true);
+  document.getElementById('context-awareness').checked = loadBool(STORAGE.contextAwareness, true);
+  
+  if (loadBool(STORAGE.privacySavePresets, true)) {
+    actionConfigs = load(STORAGE.actionConfigs, {});
+    userPresets = load(STORAGE.userPresets, {});
+  }
+  versionHistory = load(STORAGE.versionHistory, []);
 }
 
-function saveButtonCustomizations() {
-  saveIfAllowed(STORAGE_KEYS.buttonCustomizations, JSON.stringify(buttonCustomizations), STORAGE_KEYS.privacySaveButtons);
+function saveData(key, val) {
+  if (key === STORAGE.apiKey && !loadBool(STORAGE.privacySaveKey)) return;
+  if ((key === STORAGE.actionConfigs || key === STORAGE.userPresets) && !loadBool(STORAGE.privacySavePresets, true)) return;
+  save(key, val);
 }
 
-function getButtonConfig(action) {
-  const defaults = DEFAULT_PROMPTS[action];
-  const custom = buttonCustomizations[action] || {};
-  return {
-    name: custom.name || defaults.name,
-    icon: defaults.icon,
-    prompt: defaults.prompt + (custom.extra ? '\n\nAdditional instructions: ' + custom.extra : ''),
-    extra: custom.extra || '',
-    isCustomized: !!(custom.name || custom.extra)
-  };
-}
-
-// ============== AI Provider Configurations ==============
-
-const PROVIDER_CONFIG = {
+// ==================== PROVIDER CONFIG ====================
+const PROVIDERS = {
   openai: {
     url: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-4o-mini',
-    formatRequest: (messages, tools) => ({
-      model: 'gpt-4o-mini',
-      messages,
-      tools,
-      tool_choice: 'auto'
-    }),
-    parseResponse: (data) => data.choices?.[0]?.message,
-    getHeaders: (apiKey) => ({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    })
+    format: (msgs, tools) => ({ model: 'gpt-4o-mini', messages: msgs, tools, tool_choice: 'auto' }),
+    parse: d => d.choices?.[0]?.message,
+    headers: k => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${k}` })
   },
   gemini: {
-    url: (apiKey) => `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    formatRequest: (messages, tools) => {
-      const contents = messages.filter(m => m.role !== 'system').map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content || '' }]
-      }));
-      const systemInstruction = messages.find(m => m.role === 'system');
-      const geminiTools = tools ? [{
-        functionDeclarations: tools.map(t => ({
-          name: t.function.name,
-          description: t.function.description,
-          parameters: t.function.parameters
-        }))
-      }] : undefined;
-      return {
-        contents,
-        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction.content }] } : undefined,
-        tools: geminiTools
-      };
+    url: k => `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${k}`,
+    format: (msgs, tools) => {
+      const contents = msgs.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content || '' }] }));
+      const sys = msgs.find(m => m.role === 'system');
+      return { contents, systemInstruction: sys ? { parts: [{ text: sys.content }] } : undefined, tools: tools ? [{ functionDeclarations: tools.map(t => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })) }] : undefined };
     },
-    parseResponse: (data) => {
-      const candidate = data.candidates?.[0];
-      if (!candidate) return null;
-      const parts = candidate.content?.parts || [];
-      const textPart = parts.find(p => p.text);
-      const functionCall = parts.find(p => p.functionCall);
-      if (functionCall) {
-        return {
-          content: textPart?.text || '',
-          tool_calls: [{
-            id: 'gemini-' + Date.now(),
-            function: {
-              name: functionCall.functionCall.name,
-              arguments: JSON.stringify(functionCall.functionCall.args || {})
-            }
-          }]
-        };
-      }
-      return { content: textPart?.text || '' };
+    parse: d => {
+      const c = d.candidates?.[0]?.content?.parts || [];
+      const txt = c.find(p => p.text);
+      const fn = c.find(p => p.functionCall);
+      if (fn) return { content: txt?.text || '', tool_calls: [{ id: 'g-' + Date.now(), function: { name: fn.functionCall.name, arguments: JSON.stringify(fn.functionCall.args || {}) } }] };
+      return { content: txt?.text || '' };
     },
-    getHeaders: () => ({ 'Content-Type': 'application/json' })
+    headers: () => ({ 'Content-Type': 'application/json' })
   },
   claude: {
     url: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-3-haiku-20240307',
-    formatRequest: (messages, tools) => {
-      const systemMsg = messages.find(m => m.role === 'system');
-      const otherMsgs = messages.filter(m => m.role !== 'system');
-      const claudeTools = tools ? tools.map(t => ({
-        name: t.function.name,
-        description: t.function.description,
-        input_schema: t.function.parameters
-      })) : undefined;
-      return {
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2048,
-        system: systemMsg?.content || '',
-        messages: otherMsgs.map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content || ''
-        })),
-        tools: claudeTools
-      };
+    format: (msgs, tools) => {
+      const sys = msgs.find(m => m.role === 'system');
+      return { model: 'claude-3-haiku-20240307', max_tokens: 2048, system: sys?.content || '', messages: msgs.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || '' })), tools: tools?.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters })) };
     },
-    parseResponse: (data) => {
-      const content = data.content || [];
-      const textBlock = content.find(c => c.type === 'text');
-      const toolUse = content.find(c => c.type === 'tool_use');
-      if (toolUse) {
-        return {
-          content: textBlock?.text || '',
-          tool_calls: [{
-            id: toolUse.id,
-            function: {
-              name: toolUse.name,
-              arguments: JSON.stringify(toolUse.input || {})
-            }
-          }]
-        };
-      }
-      return { content: textBlock?.text || '' };
+    parse: d => {
+      const txt = d.content?.find(c => c.type === 'text');
+      const tool = d.content?.find(c => c.type === 'tool_use');
+      if (tool) return { content: txt?.text || '', tool_calls: [{ id: tool.id, function: { name: tool.name, arguments: JSON.stringify(tool.input || {}) } }] };
+      return { content: txt?.text || '' };
     },
-    getHeaders: (apiKey) => ({
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    })
+    headers: k => ({ 'Content-Type': 'application/json', 'x-api-key': k, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' })
   },
   local: {
-    formatRequest: (messages, tools, model) => ({
-      model: model || 'local-model',
-      messages,
-      tools,
-      tool_choice: 'auto'
-    }),
-    parseResponse: (data) => data.choices?.[0]?.message,
-    getHeaders: (apiKey) => {
-      const headers = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-      return headers;
-    }
+    format: (msgs, tools, model) => ({ model: model || 'local', messages: msgs, tools, tool_choice: 'auto' }),
+    parse: d => d.choices?.[0]?.message,
+    headers: k => ({ 'Content-Type': 'application/json', ...(k ? { 'Authorization': `Bearer ${k}` } : {}) })
   }
 };
 
-// ============== Document Editing Tools ==============
-
+// ==================== TOOLS ====================
 const TOOLS = [
-  {
-    type: 'function',
-    function: {
-      name: 'delete_all_instances_of_text',
-      description: 'Delete every instance of a specific word or phrase from the document.',
-      parameters: {
-        type: 'object',
-        properties: {
-          searchText: { type: 'string', description: 'The exact word or phrase to find and delete' }
-        },
-        required: ['searchText']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'replace_all_text',
-      description: 'Replace every instance of a search string with a replacement string.',
-      parameters: {
-        type: 'object',
-        properties: {
-          searchText: { type: 'string', description: 'The text to find' },
-          replaceText: { type: 'string', description: 'The text to replace it with' }
-        },
-        required: ['searchText', 'replaceText']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'highlight_text',
-      description: 'Highlight all instances of specific text with a color.',
-      parameters: {
-        type: 'object',
-        properties: {
-          searchText: { type: 'string', description: 'The text to highlight' },
-          color: { 
-            type: 'string', 
-            description: 'Highlight color',
-            enum: ['yellow', 'green', 'cyan', 'magenta', 'blue', 'red', 'darkBlue', 'darkCyan', 'darkGreen', 'darkMagenta', 'darkRed', 'darkYellow', 'gray25', 'gray50']
-          }
-        },
-        required: ['searchText', 'color']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_highlight',
-      description: 'Remove highlighting from text. Use "*" to remove all highlights.',
-      parameters: {
-        type: 'object',
-        properties: {
-          searchText: { type: 'string', description: 'The text to remove highlighting from' }
-        },
-        required: ['searchText']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_comment',
-      description: 'Add a comment to specific text in the document margin.',
-      parameters: {
-        type: 'object',
-        properties: {
-          searchText: { type: 'string', description: 'The text to attach the comment to' },
-          comment: { type: 'string', description: 'The comment text' },
-          matchIndex: { type: 'number', description: 'Which occurrence (0 = first)' }
-        },
-        required: ['searchText', 'comment']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'insert_text_at_end',
-      description: 'Insert text at the end of the document.',
-      parameters: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: 'The text to insert' }
-        },
-        required: ['text']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'insert_text_at_start',
-      description: 'Insert text at the beginning of the document.',
-      parameters: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: 'The text to insert' }
-        },
-        required: ['text']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_document_content',
-      description: 'Get the current text content of the document.',
-      parameters: { type: 'object', properties: {} }
-    }
-  }
+  { type: 'function', function: { name: 'replace_all_text', description: 'Find and replace text', parameters: { type: 'object', properties: { searchText: { type: 'string' }, replaceText: { type: 'string' } }, required: ['searchText', 'replaceText'] } } },
+  { type: 'function', function: { name: 'highlight_text', description: 'Highlight text with color', parameters: { type: 'object', properties: { searchText: { type: 'string' }, color: { type: 'string', enum: ['yellow', 'green', 'cyan', 'red', 'blue'] } }, required: ['searchText', 'color'] } } },
+  { type: 'function', function: { name: 'add_comment', description: 'Add comment to text', parameters: { type: 'object', properties: { searchText: { type: 'string' }, comment: { type: 'string' } }, required: ['searchText', 'comment'] } } },
+  { type: 'function', function: { name: 'insert_text', description: 'Insert text at position', parameters: { type: 'object', properties: { text: { type: 'string' }, position: { type: 'string', enum: ['start', 'end'] } }, required: ['text', 'position'] } } },
+  { type: 'function', function: { name: 'get_document_content', description: 'Get document text', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'delete_text', description: 'Delete all instances of text', parameters: { type: 'object', properties: { searchText: { type: 'string' } }, required: ['searchText'] } } }
 ];
 
-// ============== Tool Implementations ==============
+const COLORS = { yellow: 'Yellow', green: 'BrightGreen', cyan: 'Turquoise', red: 'Red', blue: 'Blue' };
 
-const HIGHLIGHT_COLORS = {
-  yellow: 'Yellow', green: 'BrightGreen', cyan: 'Turquoise', magenta: 'Pink',
-  blue: 'Blue', red: 'Red', darkBlue: 'DarkBlue', darkCyan: 'DarkCyan',
-  darkGreen: 'DarkGreen', darkMagenta: 'DarkMagenta', darkRed: 'DarkRed',
-  darkYellow: 'DarkYellow', gray25: 'Gray25', gray50: 'Gray50'
+async function execTool(name, args) {
+  const Word = getWord();
+  if (!Word) return { success: false, message: 'Word not ready' };
+  
+  return Word.run(async ctx => {
+    const body = ctx.document.body;
+    
+    switch (name) {
+      case 'get_document_content':
+        body.load('text');
+        await ctx.sync();
+        return { success: true, content: (body.text || '').slice(0, 15000) };
+        
+      case 'replace_all_text': {
+        const results = body.search(args.searchText, { matchCase: false });
+        results.load('items');
+        await ctx.sync();
+        for (let i = results.items.length - 1; i >= 0; i--) {
+          results.items[i].insertText(args.replaceText || '', Word.InsertLocation.replace);
+        }
+        await ctx.sync();
+        return { success: true, count: results.items.length };
+      }
+      
+      case 'highlight_text': {
+        const results = body.search(args.searchText, { matchCase: false });
+        results.load('items');
+        await ctx.sync();
+        for (const item of results.items) {
+          item.font.highlightColor = COLORS[args.color] || 'Yellow';
+        }
+        await ctx.sync();
+        return { success: true, count: results.items.length };
+      }
+      
+      case 'add_comment': {
+        const results = body.search(args.searchText, { matchCase: false });
+        results.load('items');
+        await ctx.sync();
+        if (results.items.length > 0) {
+          results.items[0].insertComment(args.comment);
+          await ctx.sync();
+          return { success: true };
+        }
+        return { success: false, message: 'Text not found' };
+      }
+      
+      case 'insert_text':
+        body.insertText(args.text, args.position === 'start' ? Word.InsertLocation.start : Word.InsertLocation.end);
+        await ctx.sync();
+        return { success: true };
+        
+      case 'delete_text': {
+        const results = body.search(args.searchText, { matchCase: false });
+        results.load('items');
+        await ctx.sync();
+        for (let i = results.items.length - 1; i >= 0; i--) {
+          results.items[i].insertText('', Word.InsertLocation.replace);
+        }
+        await ctx.sync();
+        return { success: true, count: results.items.length };
+      }
+      
+      default:
+        return { success: false, message: 'Unknown tool' };
+    }
+  });
+}
+
+// ==================== CONTEXT AWARENESS ====================
+async function getDocumentContext() {
+  if (!loadBool(STORAGE.contextAwareness, true)) return '';
+  
+  const Word = getWord();
+  if (!Word) return '';
+  
+  try {
+    return await Word.run(async ctx => {
+      const selection = ctx.document.getSelection();
+      const body = ctx.document.body;
+      body.load('text');
+      selection.load('text');
+      await ctx.sync();
+      
+      const fullText = body.text || '';
+      const selectedText = selection.text || '';
+      
+      // Find context around selection
+      if (selectedText && fullText.includes(selectedText)) {
+        const idx = fullText.indexOf(selectedText);
+        const before = fullText.slice(Math.max(0, idx - 500), idx);
+        const after = fullText.slice(idx + selectedText.length, idx + selectedText.length + 500);
+        return `[CONTEXT BEFORE]: ${before}\n[SELECTED TEXT]: ${selectedText}\n[CONTEXT AFTER]: ${after}`;
+      }
+      
+      return `[DOCUMENT EXCERPT]: ${fullText.slice(0, 2000)}`;
+    });
+  } catch {
+    return '';
+  }
+}
+
+// ==================== PROMPT BUILDER ====================
+function buildPrompt(actionKey, config) {
+  const action = ACTIONS[actionKey];
+  const glossaryReplace = document.getElementById('glossary-replace').value.trim();
+  const glossaryAvoid = document.getElementById('glossary-avoid').value.trim();
+  const customPrompt = document.getElementById('custom-prompt').value.trim();
+  
+  let prompt = `You are an AI writing assistant. ${action.base}\n\n`;
+  
+  // Add parameters
+  prompt += `PARAMETERS:\n`;
+  prompt += `- Tone: ${config.tone}\n`;
+  prompt += `- Target Length: ${config.length}\n`;
+  prompt += `- Formality Level: ${config.formality}/5 (1=casual chat, 5=legal/academic)\n`;
+  prompt += `- Output Structure: ${config.structure}\n`;
+  prompt += `- Reading Level: Grade ${config.complexity}\n`;
+  prompt += `- Jargon: ${config.jargon}\n`;
+  prompt += `- Voice: ${config.voice}\n`;
+  prompt += `- Revision Depth: ${['Surface (grammar only)', 'Structural (rewrite sentences)', 'Conceptual (reorganize ideas)'][config.revision - 1]}\n`;
+  if (config.citation !== 'none') prompt += `- Citation Style: ${config.citation}\n`;
+  
+  // Glossary rules
+  if (glossaryReplace) {
+    prompt += `\nWORD REPLACEMENTS (always apply):\n`;
+    glossaryReplace.split('\n').forEach(line => {
+      const [old, neu] = line.split('→').map(s => s.trim());
+      if (old && neu) prompt += `- Replace "${old}" with "${neu}"\n`;
+    });
+  }
+  
+  if (glossaryAvoid) {
+    prompt += `\nWORDS TO AVOID (never use these):\n`;
+    glossaryAvoid.split('\n').forEach(word => {
+      if (word.trim()) prompt += `- ${word.trim()}\n`;
+    });
+  }
+  
+  // Custom instructions
+  if (customPrompt) prompt += `\nGLOBAL INSTRUCTIONS:\n${customPrompt}\n`;
+  if (config.instructions) prompt += `\nSPECIFIC INSTRUCTIONS:\n${config.instructions}\n`;
+  
+  prompt += `\nALWAYS use get_document_content first to read the document before making changes.`;
+  
+  return prompt;
+}
+
+// ==================== API CALL ====================
+async function callAI(systemPrompt, userMessage) {
+  const provider = document.getElementById('provider').value;
+  const apiKey = document.getElementById('api-key').value.trim();
+  const localUrl = document.getElementById('local-url').value.trim();
+  const localModel = document.getElementById('local-model').value.trim();
+  
+  if (!apiKey && provider !== 'local') throw new Error('API key required');
+  
+  const cfg = PROVIDERS[provider];
+  let url = typeof cfg.url === 'function' ? cfg.url(apiKey) : cfg.url;
+  if (provider === 'local') url = localUrl;
+  
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userMessage }
+  ];
+  
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: cfg.headers(apiKey),
+    body: JSON.stringify(cfg.format(messages, TOOLS, localModel))
+  });
+  
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${resp.status}`);
+  }
+  
+  return cfg.parse(await resp.json());
+}
+
+// ==================== RUN ACTION ====================
+async function runAction(actionKey, config) {
+  setStatus('Reading document...');
+  
+  const context = await getDocumentContext();
+  const systemPrompt = buildPrompt(actionKey, config);
+  const userMessage = context || 'Please read the document and proceed with the action.';
+  
+  let messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }];
+  
+  try {
+    let processing = true;
+    let iterations = 0;
+    const maxIterations = 10;
+    
+    while (processing && iterations < maxIterations) {
+      iterations++;
+      setStatus(`Processing (${iterations})...`);
+      
+      const response = await callAI(systemPrompt, messages[messages.length - 1].content);
+      
+      if (response.tool_calls?.length > 0) {
+        messages.push({ role: 'assistant', content: response.content || '', tool_calls: response.tool_calls });
+        
+        for (const tc of response.tool_calls) {
+          const name = tc.function?.name;
+          let args = {};
+          try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+          
+          setStatus(`Running ${name}...`);
+          addMessage('tool', `${name}(${JSON.stringify(args).slice(0, 50)}...)`, 'Tool');
+          
+          const result = await execTool(name, args);
+          messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+          
+          // Save to history if it was a content change
+          if (name === 'replace_all_text' && result.success) {
+            addToHistory(actionKey, args.searchText, args.replaceText);
+          }
+        }
+      } else {
+        addMessage('assistant', response.content?.trim() || 'Done.', 'AI');
+        processing = false;
+      }
+    }
+    
+    setStatus('Ready');
+  } catch (e) {
+    addMessage('error', e.message, 'Error');
+    setStatus('Error');
+  }
+}
+
+// ==================== VERSION HISTORY ====================
+function addToHistory(action, original, replacement) {
+  versionHistory.unshift({
+    id: Date.now(),
+    action,
+    original,
+    replacement,
+    timestamp: new Date().toLocaleTimeString()
+  });
+  if (versionHistory.length > 50) versionHistory.pop();
+  save(STORAGE.versionHistory, versionHistory);
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (versionHistory.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No history yet.</p>';
+    return;
+  }
+  
+  list.innerHTML = versionHistory.map(h => `
+    <div style="padding:10px;border-bottom:1px solid var(--border);">
+      <div style="font-size:10px;color:var(--text-muted);">${h.timestamp} - ${ACTIONS[h.action]?.name || h.action}</div>
+      <div style="font-size:11px;margin-top:4px;"><strong>Original:</strong> ${(h.original || '').slice(0, 100)}...</div>
+      <div style="font-size:11px;"><strong>Changed to:</strong> ${(h.replacement || '').slice(0, 100)}...</div>
+      <button onclick="revertHistory('${h.id}')" style="margin-top:6px;padding:4px 10px;background:var(--primary);color:white;border:none;border-radius:4px;cursor:pointer;font-size:10px;">Revert</button>
+    </div>
+  `).join('');
+}
+
+window.revertHistory = async function(id) {
+  const item = versionHistory.find(h => h.id === parseInt(id));
+  if (!item) return;
+  
+  try {
+    await execTool('replace_all_text', { searchText: item.replacement, replaceText: item.original });
+    addMessage('system', `Reverted: "${item.replacement}" → "${item.original}"`, 'History');
+  } catch (e) {
+    addMessage('error', e.message, 'Error');
+  }
 };
 
-async function deleteAllText(searchText) {
-  if (!searchText) return { success: false, message: 'searchText required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    const results = ctx.document.body.search(searchText, { matchCase: false });
-    results.load('items');
-    await ctx.sync();
-    for (let i = results.items.length - 1; i >= 0; i--) {
-      results.items[i].insertText('', Word.InsertLocation.replace);
-    }
-    await ctx.sync();
-    return { success: true, count: results.items.length, message: `Deleted ${results.items.length} instance(s)` };
-  });
-}
-
-async function replaceAllText(searchText, replaceText) {
-  if (!searchText) return { success: false, message: 'searchText required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    const results = ctx.document.body.search(searchText, { matchCase: false });
-    results.load('items');
-    await ctx.sync();
-    for (let i = results.items.length - 1; i >= 0; i--) {
-      results.items[i].insertText(replaceText || '', Word.InsertLocation.replace);
-    }
-    await ctx.sync();
-    return { success: true, count: results.items.length, message: `Replaced ${results.items.length} instance(s)` };
-  });
-}
-
-async function highlightText(searchText, color) {
-  if (!searchText) return { success: false, message: 'searchText required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    const results = ctx.document.body.search(searchText, { matchCase: false });
-    results.load('items');
-    await ctx.sync();
-    for (const item of results.items) {
-      item.font.highlightColor = HIGHLIGHT_COLORS[color] || 'Yellow';
-    }
-    await ctx.sync();
-    return { success: true, count: results.items.length, message: `Highlighted ${results.items.length} instance(s)` };
-  });
-}
-
-async function removeHighlight(searchText) {
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    if (searchText === '*') {
-      ctx.document.body.font.highlightColor = null;
-      await ctx.sync();
-      return { success: true, message: 'Removed all highlights' };
-    }
-    const results = ctx.document.body.search(searchText, { matchCase: false });
-    results.load('items');
-    await ctx.sync();
-    for (const item of results.items) {
-      item.font.highlightColor = null;
-    }
-    await ctx.sync();
-    return { success: true, count: results.items.length, message: `Removed highlights from ${results.items.length} instance(s)` };
-  });
-}
-
-async function addComment(searchText, commentText, matchIndex = 0) {
-  if (!searchText || !commentText) return { success: false, message: 'searchText and comment required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    const results = ctx.document.body.search(searchText, { matchCase: false });
-    results.load('items');
-    await ctx.sync();
-    if (results.items.length === 0) return { success: false, message: `"${searchText}" not found` };
-    const idx = Math.min(matchIndex || 0, results.items.length - 1);
-    results.items[idx].insertComment(commentText);
-    await ctx.sync();
-    return { success: true, message: `Added comment to occurrence ${idx + 1}` };
-  });
-}
-
-async function insertTextAtEnd(text) {
-  if (!text) return { success: false, message: 'text required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    ctx.document.body.insertText(text, Word.InsertLocation.end);
-    await ctx.sync();
-    return { success: true, message: 'Inserted at end' };
-  });
-}
-
-async function insertTextAtStart(text) {
-  if (!text) return { success: false, message: 'text required' };
-  const Word = getWord();
-  if (!Word) return { success: false, message: 'Word not ready' };
-  return Word.run(async (ctx) => {
-    ctx.document.body.insertText(text, Word.InsertLocation.start);
-    await ctx.sync();
-    return { success: true, message: 'Inserted at start' };
-  });
-}
-
-async function getDocumentContent() {
-  const Word = getWord();
-  if (!Word) return { success: false, content: '' };
-  return Word.run(async (ctx) => {
-    const body = ctx.document.body;
-    body.load('text');
-    await ctx.sync();
-    return { success: true, content: (body.text || '').slice(0, 12000) };
-  });
-}
-
-async function executeTool(toolName, args) {
-  switch (toolName) {
-    case 'delete_all_instances_of_text': return deleteAllText(args.searchText);
-    case 'replace_all_text': return replaceAllText(args.searchText, args.replaceText);
-    case 'highlight_text': return highlightText(args.searchText, args.color);
-    case 'remove_highlight': return removeHighlight(args.searchText);
-    case 'add_comment': return addComment(args.searchText, args.comment, args.matchIndex);
-    case 'insert_text_at_end': return insertTextAtEnd(args.text);
-    case 'insert_text_at_start': return insertTextAtStart(args.text);
-    case 'get_document_content': return getDocumentContent();
-    default: return { success: false, message: `Unknown tool: ${toolName}` };
-  }
-}
-
-// ============== API Calls ==============
-
-async function callAI(provider, apiKey, messages, localUrl, localModel) {
-  const config = PROVIDER_CONFIG[provider];
-  if (!config) throw new Error(`Unknown provider: ${provider}`);
-  
-  let url = config.url;
-  if (typeof url === 'function') url = url(apiKey);
-  if (provider === 'local') url = localUrl || 'http://localhost:1234/v1/chat/completions';
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: config.getHeaders(apiKey),
-    body: JSON.stringify(config.formatRequest(messages, TOOLS, localModel))
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || `API error: ${response.status}`);
-  }
-  
-  return config.parseResponse(await response.json());
-}
-
-// ============== UI Functions ==============
-
+// ==================== UI ====================
 function addMessage(type, content, label = '') {
-  const messagesEl = document.getElementById('messages');
+  const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = `message ${type}`;
   if (label) {
-    const labelEl = document.createElement('div');
-    labelEl.className = 'message-label';
-    labelEl.textContent = label;
-    div.appendChild(labelEl);
+    const lbl = document.createElement('div');
+    lbl.className = 'message-label';
+    lbl.textContent = label;
+    div.appendChild(lbl);
   }
-  const contentEl = document.createElement('div');
-  contentEl.textContent = content;
-  div.appendChild(contentEl);
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  const txt = document.createElement('div');
+  txt.textContent = content;
+  div.appendChild(txt);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function setStatus(text) {
   document.getElementById('status').textContent = text;
 }
 
-function setSendEnabled(enabled) {
-  document.getElementById('send-btn').disabled = !enabled;
+function renderActionsList() {
+  const list = document.getElementById('quick-actions-list');
+  list.innerHTML = Object.entries(ACTIONS).map(([key, action]) => {
+    const hasCustom = actionConfigs[key] && Object.keys(actionConfigs[key]).length > 0;
+    return `
+      <div class="quick-action-item ${hasCustom ? 'customized' : ''}" data-action="${key}">
+        <span class="qa-icon">${action.icon}</span>
+        <div class="qa-info">
+          <div class="qa-name">${action.name}</div>
+          <div class="qa-desc">${action.desc}</div>
+        </div>
+        <div class="qa-buttons">
+          <button class="qa-btn settings" data-action="${key}" data-mode="settings" title="Configure">⚙️</button>
+          <button class="qa-btn run" data-action="${key}" data-mode="run">Run</button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-function setQuickButtonsEnabled(enabled) {
-  document.querySelectorAll('.quick-btn').forEach(btn => btn.disabled = !enabled);
+function updatePreview() {
+  const tone = document.getElementById('modal-tone').value;
+  document.getElementById('preview-result').textContent = PREVIEW_EXAMPLES[tone] || PREVIEW_EXAMPLES.neutral;
 }
 
-// ============== Main App ==============
+// ==================== MODAL HANDLING ====================
+let currentAction = null;
+let currentConfig = { ...DEFAULT_CONFIG };
 
-Office.onReady((info) => {
+function openModal(actionKey) {
+  currentAction = actionKey;
+  const action = ACTIONS[actionKey];
+  currentConfig = { ...DEFAULT_CONFIG, ...(actionConfigs[actionKey] || {}) };
+  
+  document.getElementById('modal-icon').textContent = action.icon;
+  document.getElementById('modal-action-name').textContent = action.name;
+  
+  // Set values
+  document.getElementById('modal-tone').value = currentConfig.tone;
+  document.getElementById('modal-formality').value = currentConfig.formality;
+  document.getElementById('modal-instructions').value = currentConfig.instructions;
+  document.getElementById('modal-citation').value = currentConfig.citation;
+  document.getElementById('modal-revision').value = currentConfig.revision;
+  
+  // Set segmented controls
+  setSegmented('modal-length', currentConfig.length);
+  setSegmented('modal-complexity', currentConfig.complexity.toString());
+  setSegmented('modal-jargon', currentConfig.jargon);
+  setSegmented('modal-voice', currentConfig.voice);
+  
+  // Set icon buttons
+  setIconBtn('modal-structure', currentConfig.structure);
+  
+  updateCharCount();
+  updatePreview();
+  
+  document.getElementById('action-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('action-modal').classList.remove('open');
+  currentAction = null;
+}
+
+function setSegmented(id, value) {
+  document.querySelectorAll(`#${id} .segmented-btn`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+}
+
+function getSegmented(id) {
+  return document.querySelector(`#${id} .segmented-btn.active`)?.dataset.value || '';
+}
+
+function setIconBtn(id, value) {
+  document.querySelectorAll(`#${id} .icon-btn`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+}
+
+function getIconBtn(id) {
+  return document.querySelector(`#${id} .icon-btn.active`)?.dataset.value || 'paragraphs';
+}
+
+function updateCharCount() {
+  const input = document.getElementById('modal-instructions');
+  const counter = document.getElementById('modal-char-count');
+  const len = input.value.length;
+  counter.textContent = `${len} / 280`;
+  counter.className = 'char-counter' + (len > 250 ? (len > 280 ? ' error' : ' warn') : '');
+}
+
+function getConfigFromModal() {
+  return {
+    tone: document.getElementById('modal-tone').value,
+    length: getSegmented('modal-length'),
+    formality: parseInt(document.getElementById('modal-formality').value),
+    structure: getIconBtn('modal-structure'),
+    complexity: parseInt(getSegmented('modal-complexity')),
+    instructions: document.getElementById('modal-instructions').value.slice(0, 280),
+    jargon: getSegmented('modal-jargon'),
+    voice: getSegmented('modal-voice'),
+    revision: parseInt(document.getElementById('modal-revision').value),
+    citation: document.getElementById('modal-citation').value
+  };
+}
+
+function applyPreset(presetKey) {
+  const preset = PRESETS[presetKey] || userPresets[presetKey];
+  if (!preset) return;
+  
+  Object.entries(preset).forEach(([k, v]) => {
+    if (k === 'name') return;
+    currentConfig[k] = v;
+  });
+  
+  // Update UI
+  document.getElementById('modal-tone').value = currentConfig.tone || 'neutral';
+  document.getElementById('modal-formality').value = currentConfig.formality || 3;
+  setSegmented('modal-length', currentConfig.length || 'maintain');
+  setSegmented('modal-complexity', (currentConfig.complexity || 12).toString());
+  setSegmented('modal-jargon', currentConfig.jargon || 'standard');
+  setSegmented('modal-voice', currentConfig.voice || 'mixed');
+  setIconBtn('modal-structure', currentConfig.structure || 'paragraphs');
+  document.getElementById('modal-revision').value = currentConfig.revision || 2;
+  document.getElementById('modal-citation').value = currentConfig.citation || 'none';
+  
+  updatePreview();
+}
+
+// ==================== INIT ====================
+Office.onReady(info => {
   if (info.host !== Office.HostType.Word) {
-    document.body.innerHTML = '<p style="padding:20px;">This add-in only works in Microsoft Word.</p>';
+    document.body.innerHTML = '<p style="padding:20px;">This add-in requires Microsoft Word.</p>';
     return;
   }
   
-  // Load button customizations
-  loadButtonCustomizations();
+  loadAllData();
+  renderActionsList();
   
-  // Elements
-  const settingsToggle = document.getElementById('settings-toggle');
-  const settingsPanel = document.getElementById('settings-panel');
-  const privacyToggle = document.getElementById('privacy-toggle');
-  const privacyPanel = document.getElementById('privacy-panel');
-  const providerSelect = document.getElementById('provider');
-  const apiKeyInput = document.getElementById('api-key');
-  const apiKeyHint = document.getElementById('api-key-hint');
-  const localSettings = document.getElementById('local-settings');
-  const localUrlInput = document.getElementById('local-url');
-  const localModelInput = document.getElementById('local-model');
-  const customPromptInput = document.getElementById('custom-prompt');
-  const userInput = document.getElementById('user-input');
-  const sendBtn = document.getElementById('send-btn');
-  const quickToggle = document.getElementById('quick-toggle');
-  const quickGrid = document.getElementById('quick-grid');
-  const editToggle = document.getElementById('edit-toggle');
-  const clearDataBtn = document.getElementById('clear-all-data');
-  const popoutBtn = document.getElementById('popout-btn');
-  
-  // Modal elements
-  const editModal = document.getElementById('edit-modal');
-  const modalIcon = document.getElementById('modal-icon');
-  const modalName = document.getElementById('modal-name');
-  const modalExtra = document.getElementById('modal-extra');
-  const modalDefault = document.getElementById('modal-default');
-  const modalClose = document.getElementById('modal-close');
-  const modalCancel = document.getElementById('modal-cancel');
-  const modalSave = document.getElementById('modal-save');
-  const modalReset = document.getElementById('modal-reset');
-  
-  let currentEditAction = null;
-  let isEditMode = false;
-  
-  // Privacy toggles
-  const privacySaveKey = document.getElementById('privacy-save-key');
-  const privacySavePrompt = document.getElementById('privacy-save-prompt');
-  const privacySaveStyle = document.getElementById('privacy-save-style');
-  const privacySaveProvider = document.getElementById('privacy-save-provider');
-  const privacySaveButtons = document.getElementById('privacy-save-buttons');
-  
-  // Load privacy settings
-  privacySaveKey.checked = getPrivacySetting(STORAGE_KEYS.privacySaveKey);
-  privacySavePrompt.checked = getPrivacySetting(STORAGE_KEYS.privacySavePrompt);
-  privacySaveStyle.checked = getPrivacySetting(STORAGE_KEYS.privacySaveStyle);
-  privacySaveProvider.checked = getPrivacySetting(STORAGE_KEYS.privacySaveProvider);
-  privacySaveButtons.checked = getPrivacySetting(STORAGE_KEYS.privacySaveButtons);
-  
-  // Load saved data
-  providerSelect.value = loadIfAllowed(STORAGE_KEYS.provider, STORAGE_KEYS.privacySaveProvider, 'openai');
-  apiKeyInput.value = loadIfAllowed(STORAGE_KEYS.apiKey, STORAGE_KEYS.privacySaveKey, '');
-  localUrlInput.value = loadIfAllowed(STORAGE_KEYS.localUrl, STORAGE_KEYS.privacySaveProvider, 'http://localhost:1234/v1/chat/completions');
-  localModelInput.value = loadIfAllowed(STORAGE_KEYS.localModel, STORAGE_KEYS.privacySaveProvider, '');
-  customPromptInput.value = loadIfAllowed(STORAGE_KEYS.customPrompt, STORAGE_KEYS.privacySavePrompt, '');
-  
-  // Update button appearances
-  const updateButtonAppearances = () => {
-    document.querySelectorAll('.quick-btn[data-action]').forEach(btn => {
-      const action = btn.dataset.action;
-      const config = getButtonConfig(action);
-      btn.querySelector('.quick-btn-text').textContent = config.name;
-      btn.classList.toggle('customized', config.isCustomized);
-      btn.classList.toggle('edit-mode', isEditMode);
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelector(`.tab-content[data-tab="${tab.dataset.tab}"]`).classList.add('active');
     });
-  };
-  updateButtonAppearances();
-  
-  // API key hint
-  const updateApiKeyHint = () => {
-    apiKeyHint.textContent = privacySaveKey.checked 
-      ? 'Your API key will be saved locally'
-      : 'API key will NOT be saved (enable in Privacy)';
-    apiKeyHint.style.color = privacySaveKey.checked ? '#81c784' : '';
-  };
-  updateApiKeyHint();
-  
-  // Local settings visibility
-  const updateLocalSettings = () => {
-    localSettings.classList.toggle('visible', providerSelect.value === 'local');
-  };
-  updateLocalSettings();
-  
-  // Pop-out functionality
-  popoutBtn.addEventListener('click', () => {
-    const width = 400;
-    const height = 700;
-    const left = window.screenX + window.outerWidth - width - 50;
-    const top = window.screenY + 50;
-    window.open(
-      window.location.href,
-      'WordAIAssistant',
-      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
   });
-  
-  // Panel toggles
-  settingsToggle.addEventListener('click', () => {
-    privacyPanel.classList.remove('open');
-    settingsPanel.classList.toggle('open');
-  });
-  
-  privacyToggle.addEventListener('click', () => {
-    settingsPanel.classList.remove('open');
-    privacyPanel.classList.toggle('open');
-  });
-  
-  // Quick actions toggle
-  quickToggle.addEventListener('click', () => {
-    const collapsed = quickGrid.classList.toggle('collapsed');
-    quickToggle.textContent = collapsed ? 'Show' : 'Hide';
-  });
-  
-  // Edit mode toggle
-  editToggle.addEventListener('click', () => {
-    isEditMode = !isEditMode;
-    editToggle.classList.toggle('active', isEditMode);
-    editToggle.textContent = isEditMode ? 'Done' : 'Edit';
-    updateButtonAppearances();
-  });
-  
-  // Open edit modal
-  const openEditModal = (action) => {
-    currentEditAction = action;
-    const defaults = DEFAULT_PROMPTS[action];
-    const custom = buttonCustomizations[action] || {};
-    
-    modalIcon.textContent = defaults.icon;
-    modalName.value = custom.name || '';
-    modalExtra.value = custom.extra || '';
-    modalDefault.value = defaults.prompt;
-    
-    editModal.classList.add('open');
-  };
-  
-  // Close edit modal
-  const closeEditModal = () => {
-    editModal.classList.remove('open');
-    currentEditAction = null;
-  };
-  
-  modalClose.addEventListener('click', closeEditModal);
-  modalCancel.addEventListener('click', closeEditModal);
-  editModal.addEventListener('click', (e) => {
-    if (e.target === editModal) closeEditModal();
-  });
-  
-  // Save customization
-  modalSave.addEventListener('click', () => {
-    if (!currentEditAction) return;
-    
-    const name = modalName.value.trim();
-    const extra = modalExtra.value.trim();
-    
-    if (name || extra) {
-      buttonCustomizations[currentEditAction] = { name, extra };
-    } else {
-      delete buttonCustomizations[currentEditAction];
-    }
-    
-    saveButtonCustomizations();
-    updateButtonAppearances();
-    closeEditModal();
-  });
-  
-  // Reset to default
-  modalReset.addEventListener('click', () => {
-    if (!currentEditAction) return;
-    delete buttonCustomizations[currentEditAction];
-    saveButtonCustomizations();
-    updateButtonAppearances();
-    closeEditModal();
-  });
-  
-  // Privacy toggle handlers
-  privacySaveKey.addEventListener('change', () => {
-    setPrivacySetting(STORAGE_KEYS.privacySaveKey, privacySaveKey.checked);
-    if (privacySaveKey.checked && apiKeyInput.value) {
-      localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value);
-    } else if (!privacySaveKey.checked) {
-      localStorage.removeItem(STORAGE_KEYS.apiKey);
-    }
-    updateApiKeyHint();
-  });
-  
-  privacySavePrompt.addEventListener('change', () => {
-    setPrivacySetting(STORAGE_KEYS.privacySavePrompt, privacySavePrompt.checked);
-    if (privacySavePrompt.checked && customPromptInput.value) {
-      localStorage.setItem(STORAGE_KEYS.customPrompt, customPromptInput.value);
-    } else if (!privacySavePrompt.checked) {
-      localStorage.removeItem(STORAGE_KEYS.customPrompt);
-    }
-  });
-  
-  privacySaveStyle.addEventListener('change', () => {
-    setPrivacySetting(STORAGE_KEYS.privacySaveStyle, privacySaveStyle.checked);
-    if (!privacySaveStyle.checked) localStorage.removeItem(STORAGE_KEYS.writingStyle);
-  });
-  
-  privacySaveProvider.addEventListener('change', () => {
-    setPrivacySetting(STORAGE_KEYS.privacySaveProvider, privacySaveProvider.checked);
-    if (privacySaveProvider.checked) {
-      localStorage.setItem(STORAGE_KEYS.provider, providerSelect.value);
-      localStorage.setItem(STORAGE_KEYS.localUrl, localUrlInput.value);
-      localStorage.setItem(STORAGE_KEYS.localModel, localModelInput.value);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.provider);
-      localStorage.removeItem(STORAGE_KEYS.localUrl);
-      localStorage.removeItem(STORAGE_KEYS.localModel);
-    }
-  });
-  
-  privacySaveButtons.addEventListener('change', () => {
-    setPrivacySetting(STORAGE_KEYS.privacySaveButtons, privacySaveButtons.checked);
-    if (privacySaveButtons.checked) {
-      saveButtonCustomizations();
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.buttonCustomizations);
-    }
-  });
-  
-  // Clear all data
-  clearDataBtn.addEventListener('click', () => {
-    if (confirm('Clear all saved data including API keys, prompts, and customizations?')) {
-      clearAllData();
-      apiKeyInput.value = '';
-      customPromptInput.value = '';
-      providerSelect.value = 'openai';
-      localUrlInput.value = 'http://localhost:1234/v1/chat/completions';
-      localModelInput.value = '';
-      buttonCustomizations = {};
-      updateLocalSettings();
-      updateButtonAppearances();
-      addMessage('system', 'All saved data cleared.', 'Privacy');
-    }
-  });
-  
-  // Save on change
-  providerSelect.addEventListener('change', () => {
-    saveIfAllowed(STORAGE_KEYS.provider, providerSelect.value, STORAGE_KEYS.privacySaveProvider);
-    updateLocalSettings();
-  });
-  apiKeyInput.addEventListener('change', () => saveIfAllowed(STORAGE_KEYS.apiKey, apiKeyInput.value, STORAGE_KEYS.privacySaveKey));
-  localUrlInput.addEventListener('change', () => saveIfAllowed(STORAGE_KEYS.localUrl, localUrlInput.value, STORAGE_KEYS.privacySaveProvider));
-  localModelInput.addEventListener('change', () => saveIfAllowed(STORAGE_KEYS.localModel, localModelInput.value, STORAGE_KEYS.privacySaveProvider));
-  customPromptInput.addEventListener('change', () => saveIfAllowed(STORAGE_KEYS.customPrompt, customPromptInput.value, STORAGE_KEYS.privacySavePrompt));
-  
-  // Send button state
-  const updateSendButton = () => {
-    const hasKey = apiKeyInput.value.trim().length > 0 || providerSelect.value === 'local';
-    const hasInput = userInput.value.trim().length > 0;
-    sendBtn.disabled = !(hasKey && hasInput);
-  };
-  apiKeyInput.addEventListener('input', updateSendButton);
-  userInput.addEventListener('input', updateSendButton);
-  providerSelect.addEventListener('change', updateSendButton);
-  updateSendButton();
-  
-  // Writing style
-  let savedWritingStyle = loadIfAllowed(STORAGE_KEYS.writingStyle, STORAGE_KEYS.privacySaveStyle, '');
-  
-  // System prompt builder
-  const getSystemPrompt = () => {
-    let prompt = `You are an AI writing assistant that helps edit Word documents. Available tools:
-- delete_all_instances_of_text, replace_all_text, highlight_text, remove_highlight
-- add_comment, insert_text_at_end, insert_text_at_start, get_document_content
-
-ALWAYS use get_document_content first before making changes. Be concise. Default highlight color is yellow.`;
-    if (savedWritingStyle) prompt += `\n\nUser's writing style:\n${savedWritingStyle}`;
-    const custom = customPromptInput.value.trim();
-    if (custom) prompt += `\n\nUser instructions:\n${custom}`;
-    return prompt;
-  };
-  
-  let conversation = [];
-  const resetConversation = () => {
-    conversation = [{ role: 'system', content: getSystemPrompt() }];
-  };
-  resetConversation();
-  
-  // Send message
-  const sendMessage = async (text, isQuickAction = false) => {
-    if (!text) return;
-    
-    const provider = providerSelect.value;
-    const apiKey = apiKeyInput.value.trim();
-    
-    if (!apiKey && provider !== 'local') {
-      addMessage('error', 'Please enter your API key in Settings.', 'Error');
-      settingsPanel.classList.add('open');
-      return;
-    }
-    
-    saveIfAllowed(STORAGE_KEYS.apiKey, apiKey, STORAGE_KEYS.privacySaveKey);
-    
-    if (!isQuickAction) {
-      userInput.value = '';
-      updateSendButton();
-    }
-    
-    addMessage('user', text.length > 200 ? text.slice(0, 200) + '...' : text, 'You');
-    setSendEnabled(false);
-    setQuickButtonsEnabled(false);
-    setStatus('Thinking...');
-    
-    resetConversation();
-    conversation.push({ role: 'user', content: text });
-    
-    try {
-      let processing = true;
-      while (processing) {
-        const response = await callAI(provider, apiKey, conversation, localUrlInput.value, localModelInput.value);
-        if (!response) throw new Error('No response from API');
-        
-        if (response.tool_calls?.length > 0) {
-          conversation.push({ role: 'assistant', content: response.content || '', tool_calls: response.tool_calls });
-          for (const tc of response.tool_calls) {
-            const name = tc.function?.name;
-            let args = {};
-            try { args = JSON.parse(tc.function?.arguments || '{}'); } catch (e) {}
-            setStatus(`Running: ${name}...`);
-            addMessage('tool', `${name}(${Object.values(args).join(', ').slice(0, 40)}...)`, 'Tool');
-            let result;
-            try { result = await executeTool(name, args); } catch (e) { result = { success: false, message: e.message }; }
-            conversation.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
-            setStatus('Processing...');
-          }
-        } else {
-          const aiResponse = response.content?.trim() || 'Done.';
-          addMessage('assistant', aiResponse, 'AI Assistant');
-          conversation.push({ role: 'assistant', content: response.content || '' });
-          processing = false;
-          setStatus('Ready');
-          
-          if (text.includes('analyze') && text.toLowerCase().includes('style')) {
-            savedWritingStyle = aiResponse;
-            saveIfAllowed(STORAGE_KEYS.writingStyle, savedWritingStyle, STORAGE_KEYS.privacySaveStyle);
-          }
-        }
-      }
-    } catch (e) {
-      addMessage('error', `Error: ${e.message}`, 'Error');
-      setStatus('Error');
-    } finally {
-      setSendEnabled(true);
-      setQuickButtonsEnabled(true);
-      updateSendButton();
-    }
-  };
-  
-  // Send button
-  sendBtn.addEventListener('click', () => sendMessage(userInput.value.trim()));
   
   // Quick action buttons
-  document.querySelectorAll('.quick-btn[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      if (isEditMode) {
-        openEditModal(action);
-      } else {
-        const config = getButtonConfig(action);
-        sendMessage(config.prompt, true);
-      }
+  document.getElementById('quick-actions-list').addEventListener('click', e => {
+    const btn = e.target.closest('.qa-btn');
+    if (!btn) return;
+    
+    const action = btn.dataset.action;
+    if (btn.dataset.mode === 'settings') {
+      openModal(action);
+    } else {
+      const config = { ...DEFAULT_CONFIG, ...(actionConfigs[action] || {}) };
+      runAction(action, config);
+      document.querySelector('.tab[data-tab="chat"]').click();
+    }
+  });
+  
+  // Modal controls
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('action-modal').addEventListener('click', e => {
+    if (e.target.id === 'action-modal') closeModal();
+  });
+  
+  document.getElementById('modal-apply').addEventListener('click', () => {
+    const config = getConfigFromModal();
+    actionConfigs[currentAction] = config;
+    saveData(STORAGE.actionConfigs, actionConfigs);
+    renderActionsList();
+    closeModal();
+    runAction(currentAction, config);
+    document.querySelector('.tab[data-tab="chat"]').click();
+  });
+  
+  document.getElementById('modal-reset').addEventListener('click', () => {
+    delete actionConfigs[currentAction];
+    saveData(STORAGE.actionConfigs, actionConfigs);
+    currentConfig = { ...DEFAULT_CONFIG };
+    openModal(currentAction); // Refresh modal
+    renderActionsList();
+  });
+  
+  // Preset handling
+  document.getElementById('modal-preset').addEventListener('change', e => {
+    if (e.target.value) applyPreset(e.target.value);
+    e.target.value = '';
+  });
+  
+  document.getElementById('modal-save-preset').addEventListener('click', () => {
+    const name = prompt('Preset name:');
+    if (!name) return;
+    const config = getConfigFromModal();
+    userPresets[name.toLowerCase().replace(/\s+/g, '_')] = { name, ...config };
+    saveData(STORAGE.userPresets, userPresets);
+    
+    // Add to dropdown
+    const opt = document.createElement('option');
+    opt.value = name.toLowerCase().replace(/\s+/g, '_');
+    opt.textContent = name + ' (Custom)';
+    document.getElementById('modal-preset').appendChild(opt);
+  });
+  
+  // Segmented controls
+  document.querySelectorAll('.segmented').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('.segmented-btn');
+      if (!btn) return;
+      seg.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
     });
   });
   
-  // Enter to send
-  userInput.addEventListener('keydown', (e) => {
+  // Icon buttons
+  document.querySelectorAll('.icon-row').forEach(row => {
+    row.addEventListener('click', e => {
+      const btn = e.target.closest('.icon-btn');
+      if (!btn) return;
+      row.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  
+  // Accordion
+  document.querySelectorAll('.accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.parentElement.classList.toggle('open');
+    });
+  });
+  
+  // Character counter
+  document.getElementById('modal-instructions').addEventListener('input', updateCharCount);
+  
+  // Tone preview
+  document.getElementById('modal-tone').addEventListener('change', updatePreview);
+  
+  // Provider change
+  document.getElementById('provider').addEventListener('change', () => {
+    const isLocal = document.getElementById('provider').value === 'local';
+    document.getElementById('local-settings').style.display = isLocal ? 'block' : 'none';
+    saveData(STORAGE.provider, document.getElementById('provider').value);
+  });
+  document.getElementById('local-settings').style.display = document.getElementById('provider').value === 'local' ? 'block' : 'none';
+  
+  // Save settings on change
+  document.getElementById('api-key').addEventListener('change', () => saveData(STORAGE.apiKey, document.getElementById('api-key').value));
+  document.getElementById('local-url').addEventListener('change', () => saveData(STORAGE.localUrl, document.getElementById('local-url').value));
+  document.getElementById('local-model').addEventListener('change', () => saveData(STORAGE.localModel, document.getElementById('local-model').value));
+  document.getElementById('custom-prompt').addEventListener('change', () => saveData(STORAGE.customPrompt, document.getElementById('custom-prompt').value));
+  document.getElementById('glossary-replace').addEventListener('change', () => saveData(STORAGE.glossaryReplace, document.getElementById('glossary-replace').value));
+  document.getElementById('glossary-avoid').addEventListener('change', () => saveData(STORAGE.glossaryAvoid, document.getElementById('glossary-avoid').value));
+  
+  // Privacy toggles
+  document.getElementById('privacy-save-key').addEventListener('change', e => {
+    save(STORAGE.privacySaveKey, e.target.checked);
+    if (!e.target.checked) localStorage.removeItem(STORAGE.apiKey);
+  });
+  document.getElementById('privacy-save-presets').addEventListener('change', e => {
+    save(STORAGE.privacySavePresets, e.target.checked);
+    if (!e.target.checked) {
+      localStorage.removeItem(STORAGE.actionConfigs);
+      localStorage.removeItem(STORAGE.userPresets);
+    }
+  });
+  document.getElementById('context-awareness').addEventListener('change', e => {
+    save(STORAGE.contextAwareness, e.target.checked);
+  });
+  
+  // Clear data
+  document.getElementById('clear-data').addEventListener('click', () => {
+    if (confirm('Clear all saved data?')) {
+      Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
+      location.reload();
+    }
+  });
+  
+  // History modal
+  document.getElementById('history-btn').addEventListener('click', () => {
+    renderHistory();
+    document.getElementById('history-modal').classList.add('open');
+  });
+  document.getElementById('history-close').addEventListener('click', () => {
+    document.getElementById('history-modal').classList.remove('open');
+  });
+  document.getElementById('history-done').addEventListener('click', () => {
+    document.getElementById('history-modal').classList.remove('open');
+  });
+  document.getElementById('history-clear').addEventListener('click', () => {
+    if (confirm('Clear all history?')) {
+      versionHistory = [];
+      save(STORAGE.versionHistory, []);
+      renderHistory();
+    }
+  });
+  
+  // Pop-out
+  document.getElementById('popout-btn').addEventListener('click', () => {
+    window.open(location.href, 'WordAI', 'width=450,height=700,resizable=yes');
+  });
+  
+  // Chat send
+  const sendBtn = document.getElementById('send-btn');
+  const userInput = document.getElementById('user-input');
+  
+  const updateSendBtn = () => {
+    const hasKey = document.getElementById('api-key').value.trim() || document.getElementById('provider').value === 'local';
+    sendBtn.disabled = !hasKey || !userInput.value.trim();
+  };
+  
+  userInput.addEventListener('input', updateSendBtn);
+  document.getElementById('api-key').addEventListener('input', updateSendBtn);
+  
+  sendBtn.addEventListener('click', async () => {
+    const text = userInput.value.trim();
+    if (!text) return;
+    
+    userInput.value = '';
+    updateSendBtn();
+    addMessage('user', text, 'You');
+    
+    const customPrompt = document.getElementById('custom-prompt').value;
+    const systemPrompt = `You are an AI writing assistant. ${customPrompt}\n\nAlways use get_document_content first to read the document.`;
+    
+    try {
+      setStatus('Thinking...');
+      const response = await callAI(systemPrompt, text);
+      
+      if (response.tool_calls?.length > 0) {
+        for (const tc of response.tool_calls) {
+          const name = tc.function?.name;
+          let args = {};
+          try { args = JSON.parse(tc.function?.arguments || '{}'); } catch {}
+          setStatus(`Running ${name}...`);
+          await execTool(name, args);
+        }
+      }
+      
+      addMessage('assistant', response.content?.trim() || 'Done.', 'AI');
+      setStatus('Ready');
+    } catch (e) {
+      addMessage('error', e.message, 'Error');
+      setStatus('Error');
+    }
+  });
+  
+  userInput.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendBtn.click();
     }
   });
   
-  // Welcome message
-  addMessage('system', 'Configure your AI in Settings. Use Edit to customize quick actions. Click the pop-out button to open in a new window.', 'Welcome');
+  addMessage('system', 'Select a Quick Action or use Chat. Configure each action with the ⚙️ button.', 'Welcome');
 });
