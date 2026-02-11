@@ -3,6 +3,12 @@
 // Privacy: All data goes directly to your chosen AI provider - no external storage
 
 const STORAGE_KEYS = {
+  // Privacy settings (always saved to remember user preferences)
+  privacySaveKey: 'word-ai-privacy-save-key',
+  privacySavePrompt: 'word-ai-privacy-save-prompt',
+  privacySaveStyle: 'word-ai-privacy-save-style',
+  privacySaveProvider: 'word-ai-privacy-save-provider',
+  // Actual data (only saved if privacy settings allow)
   provider: 'word-ai-provider',
   apiKey: 'word-ai-api-key',
   localUrl: 'word-ai-local-url',
@@ -13,6 +19,41 @@ const STORAGE_KEYS = {
 
 // Get Word API reference
 const getWord = () => window.Word || window.Office?.Word;
+
+// ============== Privacy Helpers ==============
+
+function getPrivacySetting(key) {
+  return localStorage.getItem(key) === 'true';
+}
+
+function setPrivacySetting(key, value) {
+  localStorage.setItem(key, value ? 'true' : 'false');
+}
+
+function saveIfAllowed(key, value, privacyKey) {
+  if (getPrivacySetting(privacyKey)) {
+    localStorage.setItem(key, value);
+  } else {
+    localStorage.removeItem(key);
+  }
+}
+
+function loadIfAllowed(key, privacyKey, defaultValue = '') {
+  if (getPrivacySetting(privacyKey)) {
+    return localStorage.getItem(key) || defaultValue;
+  }
+  return defaultValue;
+}
+
+function clearAllData() {
+  // Clear all data keys (but keep privacy preferences)
+  localStorage.removeItem(STORAGE_KEYS.provider);
+  localStorage.removeItem(STORAGE_KEYS.apiKey);
+  localStorage.removeItem(STORAGE_KEYS.localUrl);
+  localStorage.removeItem(STORAGE_KEYS.localModel);
+  localStorage.removeItem(STORAGE_KEYS.customPrompt);
+  localStorage.removeItem(STORAGE_KEYS.writingStyle);
+}
 
 // ============== Quick Action Prompts ==============
 
@@ -624,7 +665,6 @@ function addMessage(type, content, label = '') {
   const div = document.createElement('div');
   div.className = `message ${type}`;
   
-  // Add label
   if (label) {
     const labelEl = document.createElement('div');
     labelEl.className = 'message-label';
@@ -632,7 +672,6 @@ function addMessage(type, content, label = '') {
     div.appendChild(labelEl);
   }
   
-  // Add content
   const contentEl = document.createElement('div');
   contentEl.textContent = content;
   div.appendChild(contentEl);
@@ -653,8 +692,6 @@ function setSendEnabled(enabled) {
 function setQuickButtonsEnabled(enabled) {
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.disabled = !enabled;
-    btn.style.opacity = enabled ? '1' : '0.5';
-    btn.style.pointerEvents = enabled ? 'auto' : 'none';
   });
 }
 
@@ -669,8 +706,11 @@ Office.onReady((info) => {
   // Elements
   const settingsToggle = document.getElementById('settings-toggle');
   const settingsPanel = document.getElementById('settings-panel');
+  const privacyToggle = document.getElementById('privacy-toggle');
+  const privacyPanel = document.getElementById('privacy-panel');
   const providerSelect = document.getElementById('provider');
   const apiKeyInput = document.getElementById('api-key');
+  const apiKeyHint = document.getElementById('api-key-hint');
   const localSettings = document.getElementById('local-settings');
   const localUrlInput = document.getElementById('local-url');
   const localModelInput = document.getElementById('local-model');
@@ -679,13 +719,38 @@ Office.onReady((info) => {
   const sendBtn = document.getElementById('send-btn');
   const quickToggle = document.getElementById('quick-toggle');
   const quickGrid = document.getElementById('quick-grid');
+  const clearDataBtn = document.getElementById('clear-all-data');
   
-  // Load saved settings
-  providerSelect.value = localStorage.getItem(STORAGE_KEYS.provider) || 'openai';
-  apiKeyInput.value = localStorage.getItem(STORAGE_KEYS.apiKey) || '';
-  localUrlInput.value = localStorage.getItem(STORAGE_KEYS.localUrl) || 'http://localhost:1234/v1/chat/completions';
-  localModelInput.value = localStorage.getItem(STORAGE_KEYS.localModel) || '';
-  customPromptInput.value = localStorage.getItem(STORAGE_KEYS.customPrompt) || '';
+  // Privacy toggles
+  const privacySaveKey = document.getElementById('privacy-save-key');
+  const privacySavePrompt = document.getElementById('privacy-save-prompt');
+  const privacySaveStyle = document.getElementById('privacy-save-style');
+  const privacySaveProvider = document.getElementById('privacy-save-provider');
+  
+  // Load privacy settings
+  privacySaveKey.checked = getPrivacySetting(STORAGE_KEYS.privacySaveKey);
+  privacySavePrompt.checked = getPrivacySetting(STORAGE_KEYS.privacySavePrompt);
+  privacySaveStyle.checked = getPrivacySetting(STORAGE_KEYS.privacySaveStyle);
+  privacySaveProvider.checked = getPrivacySetting(STORAGE_KEYS.privacySaveProvider);
+  
+  // Load saved data based on privacy settings
+  providerSelect.value = loadIfAllowed(STORAGE_KEYS.provider, STORAGE_KEYS.privacySaveProvider, 'openai');
+  apiKeyInput.value = loadIfAllowed(STORAGE_KEYS.apiKey, STORAGE_KEYS.privacySaveKey, '');
+  localUrlInput.value = loadIfAllowed(STORAGE_KEYS.localUrl, STORAGE_KEYS.privacySaveProvider, 'http://localhost:1234/v1/chat/completions');
+  localModelInput.value = loadIfAllowed(STORAGE_KEYS.localModel, STORAGE_KEYS.privacySaveProvider, '');
+  customPromptInput.value = loadIfAllowed(STORAGE_KEYS.customPrompt, STORAGE_KEYS.privacySavePrompt, '');
+  
+  // Update API key hint based on privacy setting
+  const updateApiKeyHint = () => {
+    if (privacySaveKey.checked) {
+      apiKeyHint.textContent = 'Your API key will be saved locally';
+      apiKeyHint.style.color = '#81c784';
+    } else {
+      apiKeyHint.textContent = 'API key will NOT be saved (enable in Privacy settings)';
+      apiKeyHint.style.color = '';
+    }
+  };
+  updateApiKeyHint();
   
   // Show/hide local settings
   const updateLocalSettings = () => {
@@ -693,9 +758,15 @@ Office.onReady((info) => {
   };
   updateLocalSettings();
   
-  // Settings toggle
+  // Panel toggles (close other panel when opening one)
   settingsToggle.addEventListener('click', () => {
+    privacyPanel.classList.remove('open');
     settingsPanel.classList.toggle('open');
+  });
+  
+  privacyToggle.addEventListener('click', () => {
+    settingsPanel.classList.remove('open');
+    privacyPanel.classList.toggle('open');
   });
   
   // Quick actions toggle
@@ -704,26 +775,81 @@ Office.onReady((info) => {
     quickToggle.textContent = isCollapsed ? 'Show' : 'Hide';
   });
   
-  // Save settings on change
+  // Privacy toggle handlers
+  privacySaveKey.addEventListener('change', () => {
+    setPrivacySetting(STORAGE_KEYS.privacySaveKey, privacySaveKey.checked);
+    if (privacySaveKey.checked && apiKeyInput.value) {
+      localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value);
+    } else if (!privacySaveKey.checked) {
+      localStorage.removeItem(STORAGE_KEYS.apiKey);
+    }
+    updateApiKeyHint();
+  });
+  
+  privacySavePrompt.addEventListener('change', () => {
+    setPrivacySetting(STORAGE_KEYS.privacySavePrompt, privacySavePrompt.checked);
+    if (privacySavePrompt.checked && customPromptInput.value) {
+      localStorage.setItem(STORAGE_KEYS.customPrompt, customPromptInput.value);
+    } else if (!privacySavePrompt.checked) {
+      localStorage.removeItem(STORAGE_KEYS.customPrompt);
+    }
+  });
+  
+  privacySaveStyle.addEventListener('change', () => {
+    setPrivacySetting(STORAGE_KEYS.privacySaveStyle, privacySaveStyle.checked);
+    if (!privacySaveStyle.checked) {
+      localStorage.removeItem(STORAGE_KEYS.writingStyle);
+    }
+  });
+  
+  privacySaveProvider.addEventListener('change', () => {
+    setPrivacySetting(STORAGE_KEYS.privacySaveProvider, privacySaveProvider.checked);
+    if (privacySaveProvider.checked) {
+      localStorage.setItem(STORAGE_KEYS.provider, providerSelect.value);
+      localStorage.setItem(STORAGE_KEYS.localUrl, localUrlInput.value);
+      localStorage.setItem(STORAGE_KEYS.localModel, localModelInput.value);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.provider);
+      localStorage.removeItem(STORAGE_KEYS.localUrl);
+      localStorage.removeItem(STORAGE_KEYS.localModel);
+    }
+  });
+  
+  // Clear all data button
+  clearDataBtn.addEventListener('click', () => {
+    if (confirm('This will clear all saved data including API keys, custom prompts, and settings. Continue?')) {
+      clearAllData();
+      // Reset UI
+      apiKeyInput.value = '';
+      customPromptInput.value = '';
+      providerSelect.value = 'openai';
+      localUrlInput.value = 'http://localhost:1234/v1/chat/completions';
+      localModelInput.value = '';
+      updateLocalSettings();
+      addMessage('system', 'All saved data has been cleared.', 'Privacy');
+    }
+  });
+  
+  // Save settings on change (respecting privacy settings)
   providerSelect.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEYS.provider, providerSelect.value);
+    saveIfAllowed(STORAGE_KEYS.provider, providerSelect.value, STORAGE_KEYS.privacySaveProvider);
     updateLocalSettings();
   });
   
   apiKeyInput.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value);
+    saveIfAllowed(STORAGE_KEYS.apiKey, apiKeyInput.value, STORAGE_KEYS.privacySaveKey);
   });
   
   localUrlInput.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEYS.localUrl, localUrlInput.value);
+    saveIfAllowed(STORAGE_KEYS.localUrl, localUrlInput.value, STORAGE_KEYS.privacySaveProvider);
   });
   
   localModelInput.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEYS.localModel, localModelInput.value);
+    saveIfAllowed(STORAGE_KEYS.localModel, localModelInput.value, STORAGE_KEYS.privacySaveProvider);
   });
   
   customPromptInput.addEventListener('change', () => {
-    localStorage.setItem(STORAGE_KEYS.customPrompt, customPromptInput.value);
+    saveIfAllowed(STORAGE_KEYS.customPrompt, customPromptInput.value, STORAGE_KEYS.privacySavePrompt);
   });
   
   // Enable/disable send button
@@ -740,7 +866,7 @@ Office.onReady((info) => {
   updateSendButton();
   
   // Get saved writing style
-  let savedWritingStyle = localStorage.getItem(STORAGE_KEYS.writingStyle) || '';
+  let savedWritingStyle = loadIfAllowed(STORAGE_KEYS.writingStyle, STORAGE_KEYS.privacySaveStyle, '');
   
   // Build system prompt
   const getSystemPrompt = () => {
@@ -762,12 +888,10 @@ Be concise in your responses. After performing an action, briefly confirm what y
 When highlighting, always specify a color. Default to yellow if none specified.
 When adding comments, the comment appears in the document margin attached to that text.`;
 
-    // Add saved writing style if available
     if (savedWritingStyle) {
       prompt += `\n\nThe user's writing style has been analyzed previously. When making edits or additions to their document, try to match this style:\n${savedWritingStyle}`;
     }
     
-    // Add custom prompt if set
     const customPrompt = customPromptInput.value.trim();
     if (customPrompt) {
       prompt += `\n\nAdditional user instructions:\n${customPrompt}`;
@@ -795,12 +919,13 @@ When adding comments, the comment appears in the document margin attached to tha
     
     if (!apiKey && provider !== 'local') {
       addMessage('error', 'Please enter your API key in Settings.', 'Error');
+      privacyPanel.classList.remove('open');
       settingsPanel.classList.add('open');
       return;
     }
     
-    // Save settings
-    localStorage.setItem(STORAGE_KEYS.apiKey, apiKey);
+    // Save API key if privacy allows
+    saveIfAllowed(STORAGE_KEYS.apiKey, apiKey, STORAGE_KEYS.privacySaveKey);
     
     if (!isQuickAction) {
       userInput.value = '';
@@ -812,7 +937,6 @@ When adding comments, the comment appears in the document margin attached to tha
     setQuickButtonsEnabled(false);
     setStatus('Thinking...');
     
-    // Reset conversation with fresh system prompt
     resetConversation();
     conversation.push({ role: 'user', content: text });
     
@@ -868,10 +992,10 @@ When adding comments, the comment appears in the document margin attached to tha
           processing = false;
           setStatus('Ready');
           
-          // Check if this was a style analysis - save it
+          // Check if this was a style analysis - save it if privacy allows
           if (text.includes('analyze') && text.toLowerCase().includes('style')) {
             savedWritingStyle = aiResponse;
-            localStorage.setItem(STORAGE_KEYS.writingStyle, savedWritingStyle);
+            saveIfAllowed(STORAGE_KEYS.writingStyle, savedWritingStyle, STORAGE_KEYS.privacySaveStyle);
           }
         }
       }
@@ -910,5 +1034,5 @@ When adding comments, the comment appears in the document margin attached to tha
   });
   
   // Initial message
-  addMessage('system', 'Configure your AI provider in Settings, then use Quick Actions or type a request. Your API key and settings are saved locally in your browser.', 'Welcome');
+  addMessage('system', 'Click Settings to configure your AI provider. Use Privacy to control what gets saved locally. Your data is never stored on external servers.', 'Welcome');
 });
