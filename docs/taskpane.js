@@ -1,15 +1,123 @@
-// Word AI Assistant - Multi-Provider Support
+// Word AI Assistant - Multi-Provider Support with Writing Tools
 // Supports: OpenAI, Google Gemini, Anthropic Claude, Local models
+// Privacy: All data goes directly to your chosen AI provider - no external storage
 
 const STORAGE_KEYS = {
   provider: 'word-ai-provider',
   apiKey: 'word-ai-api-key',
   localUrl: 'word-ai-local-url',
-  localModel: 'word-ai-local-model'
+  localModel: 'word-ai-local-model',
+  customPrompt: 'word-ai-custom-prompt',
+  writingStyle: 'word-ai-writing-style'
 };
 
 // Get Word API reference
 const getWord = () => window.Word || window.Office?.Word;
+
+// ============== Quick Action Prompts ==============
+
+const QUICK_ACTIONS = {
+  analyze: `Please analyze the writing style of this document. Look at:
+1. Tone (formal, casual, professional, academic, etc.)
+2. Sentence structure and complexity
+3. Vocabulary level
+4. Voice (active vs passive)
+5. Any patterns or habits
+
+After analyzing, remember this style so you can mimic it when making future edits. Give me a summary of the writing style you detected.`,
+
+  grammar: `Please check the entire document for grammar errors. For each error found:
+1. Highlight the problematic text in yellow
+2. Add a comment explaining the grammar issue and the correction
+
+After checking, give me a summary of how many issues were found.`,
+
+  spelling: `Please check the entire document for spelling errors and typos. For each error found:
+1. Highlight the misspelled word in red
+2. Add a comment with the correct spelling
+
+After checking, give me a summary of what was found.`,
+
+  formal: `Please rewrite the document content to use a formal, professional tone. Make these changes:
+- Replace casual language with formal alternatives
+- Use complete sentences
+- Avoid contractions
+- Use professional vocabulary
+- Maintain a respectful, businesslike tone
+
+Make the edits directly to the document.`,
+
+  casual: `Please rewrite the document content to use a casual, conversational tone. Make these changes:
+- Use contractions where natural
+- Simplify complex sentences
+- Use everyday vocabulary
+- Make it sound like a friendly conversation
+- Keep it approachable and relaxed
+
+Make the edits directly to the document.`,
+
+  professional: `Please adjust the document to have a professional business tone. This means:
+- Clear and direct communication
+- Appropriate formality without being stiff
+- Action-oriented language
+- Confident but not arrogant
+- Industry-appropriate terminology
+
+Make the edits directly to the document.`,
+
+  friendly: `Please rewrite the document to have a warm, friendly tone. This means:
+- Approachable and personable language
+- Showing empathy and understanding
+- Using inclusive language (we, us)
+- Being helpful and supportive
+- Adding warmth without being unprofessional
+
+Make the edits directly to the document.`,
+
+  clarity: `Please improve the clarity of this document. Focus on:
+- Breaking up long, complex sentences
+- Removing ambiguous phrases
+- Making the main points obvious
+- Using clearer word choices
+- Improving logical flow
+- Adding transitions where needed
+
+Highlight any sections you changed in cyan and add comments explaining your improvements.`,
+
+  concise: `Please make this document more concise without losing meaning. Focus on:
+- Removing redundant words and phrases
+- Eliminating filler words
+- Combining sentences where appropriate
+- Getting to the point faster
+- Removing unnecessary qualifiers
+
+Make the edits directly to the document.`,
+
+  shorter: `Please significantly shorten this document while keeping the key points. Aim to reduce the length by about 30-50%. Remove:
+- Redundant information
+- Excessive examples
+- Unnecessary elaboration
+- Filler content
+
+Make the edits directly to the document.`,
+
+  longer: `Please expand and elaborate on this document. For each main point:
+- Add more detail and explanation
+- Include examples where helpful
+- Expand on implications
+- Add supporting information
+
+Make the additions directly to the document.`,
+
+  suggestions: `Please read through this document and provide suggestions for improvement. Consider:
+- Overall structure and organization
+- Clarity and readability
+- Tone consistency
+- Missing information
+- Areas that could be stronger
+
+Give me your suggestions as a list. Don't make changes yet - just tell me what you'd recommend.`
+};
 
 // ============== AI Provider Configurations ==============
 
@@ -32,7 +140,6 @@ const PROVIDER_CONFIG = {
   gemini: {
     url: (apiKey) => `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
     formatRequest: (messages, tools) => {
-      // Convert OpenAI format to Gemini format
       const contents = messages.filter(m => m.role !== 'system').map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content || '' }]
@@ -40,7 +147,6 @@ const PROVIDER_CONFIG = {
       
       const systemInstruction = messages.find(m => m.role === 'system');
       
-      // Convert tools to Gemini format
       const geminiTools = tools ? [{
         functionDeclarations: tools.map(t => ({
           name: t.function.name,
@@ -87,7 +193,6 @@ const PROVIDER_CONFIG = {
       const systemMsg = messages.find(m => m.role === 'system');
       const otherMsgs = messages.filter(m => m.role !== 'system');
       
-      // Convert tools to Claude format
       const claudeTools = tools ? tools.map(t => ({
         name: t.function.name,
         description: t.function.description,
@@ -96,7 +201,7 @@ const PROVIDER_CONFIG = {
       
       return {
         model: 'claude-3-haiku-20240307',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemMsg?.content || '',
         messages: otherMsgs.map(m => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -133,7 +238,6 @@ const PROVIDER_CONFIG = {
     })
   },
   local: {
-    // URL and model set by user
     formatRequest: (messages, tools, model) => ({
       model: model || 'local-model',
       messages,
@@ -270,7 +374,6 @@ const TOOLS = [
 
 // ============== Tool Implementations ==============
 
-// Color mapping for Word API
 const HIGHLIGHT_COLORS = {
   yellow: 'Yellow',
   green: 'BrightGreen', 
@@ -366,7 +469,6 @@ async function removeHighlight(searchText) {
   
   return Word.run(async (context) => {
     if (searchText === '*') {
-      // Remove all highlights from entire document
       const body = context.document.body;
       body.font.highlightColor = null;
       await context.sync();
@@ -411,7 +513,6 @@ async function addComment(searchText, commentText, matchIndex = 0) {
     const index = Math.min(matchIndex || 0, items.length - 1);
     const targetRange = items[index];
     
-    // Insert comment
     targetRange.insertComment(commentText);
     await context.sync();
     
@@ -457,7 +558,7 @@ async function getDocumentContent() {
     const body = context.document.body;
     body.load('text');
     await context.sync();
-    return { success: true, content: (body.text || '').slice(0, 8000) };
+    return { success: true, content: (body.text || '').slice(0, 12000) };
   });
 }
 
@@ -518,11 +619,24 @@ async function callAI(provider, apiKey, messages, localUrl, localModel) {
 
 // ============== UI Functions ==============
 
-function addMessage(type, content, extraClass = '') {
+function addMessage(type, content, label = '') {
   const messagesEl = document.getElementById('messages');
   const div = document.createElement('div');
-  div.className = `message ${type} ${extraClass}`.trim();
-  div.textContent = content;
+  div.className = `message ${type}`;
+  
+  // Add label
+  if (label) {
+    const labelEl = document.createElement('div');
+    labelEl.className = 'message-label';
+    labelEl.textContent = label;
+    div.appendChild(labelEl);
+  }
+  
+  // Add content
+  const contentEl = document.createElement('div');
+  contentEl.textContent = content;
+  div.appendChild(contentEl);
+  
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
@@ -534,6 +648,14 @@ function setStatus(text) {
 function setSendEnabled(enabled) {
   const btn = document.getElementById('send-btn');
   btn.disabled = !enabled;
+}
+
+function setQuickButtonsEnabled(enabled) {
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.5';
+    btn.style.pointerEvents = enabled ? 'auto' : 'none';
+  });
 }
 
 // ============== Main App ==============
@@ -552,14 +674,18 @@ Office.onReady((info) => {
   const localSettings = document.getElementById('local-settings');
   const localUrlInput = document.getElementById('local-url');
   const localModelInput = document.getElementById('local-model');
+  const customPromptInput = document.getElementById('custom-prompt');
   const userInput = document.getElementById('user-input');
   const sendBtn = document.getElementById('send-btn');
+  const quickToggle = document.getElementById('quick-toggle');
+  const quickGrid = document.getElementById('quick-grid');
   
   // Load saved settings
   providerSelect.value = localStorage.getItem(STORAGE_KEYS.provider) || 'openai';
   apiKeyInput.value = localStorage.getItem(STORAGE_KEYS.apiKey) || '';
   localUrlInput.value = localStorage.getItem(STORAGE_KEYS.localUrl) || 'http://localhost:1234/v1/chat/completions';
   localModelInput.value = localStorage.getItem(STORAGE_KEYS.localModel) || '';
+  customPromptInput.value = localStorage.getItem(STORAGE_KEYS.customPrompt) || '';
   
   // Show/hide local settings
   const updateLocalSettings = () => {
@@ -570,6 +696,12 @@ Office.onReady((info) => {
   // Settings toggle
   settingsToggle.addEventListener('click', () => {
     settingsPanel.classList.toggle('open');
+  });
+  
+  // Quick actions toggle
+  quickToggle.addEventListener('click', () => {
+    const isCollapsed = quickGrid.classList.toggle('collapsed');
+    quickToggle.textContent = isCollapsed ? 'Show' : 'Hide';
   });
   
   // Save settings on change
@@ -590,6 +722,10 @@ Office.onReady((info) => {
     localStorage.setItem(STORAGE_KEYS.localModel, localModelInput.value);
   });
   
+  customPromptInput.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEYS.customPrompt, customPromptInput.value);
+  });
+  
   // Enable/disable send button
   const updateSendButton = () => {
     const provider = providerSelect.value;
@@ -603,11 +739,12 @@ Office.onReady((info) => {
   providerSelect.addEventListener('change', updateSendButton);
   updateSendButton();
   
-  // Conversation history
-  let conversation = [
-    {
-      role: 'system',
-      content: `You are an AI assistant that helps users edit their Word document. You have access to these tools:
+  // Get saved writing style
+  let savedWritingStyle = localStorage.getItem(STORAGE_KEYS.writingStyle) || '';
+  
+  // Build system prompt
+  const getSystemPrompt = () => {
+    let prompt = `You are an AI writing assistant that helps users edit their Word document. You have access to these tools:
 
 - delete_all_instances_of_text: Remove every occurrence of a word or phrase
 - replace_all_text: Find and replace text throughout the document  
@@ -618,16 +755,37 @@ Office.onReady((info) => {
 - insert_text_at_start: Add text at the beginning
 - get_document_content: Read the document's text
 
-When the user asks you to make edits, use the appropriate tools. Use get_document_content first if you need to see what's in the document. Be concise in your responses. After performing an action, briefly confirm what you did.
+When the user asks you to make edits, use the appropriate tools. ALWAYS use get_document_content first to see what's in the document before making changes.
+
+Be concise in your responses. After performing an action, briefly confirm what you did.
 
 When highlighting, always specify a color. Default to yellow if none specified.
-When adding comments, the comment appears in the document margin attached to that text.`
+When adding comments, the comment appears in the document margin attached to that text.`;
+
+    // Add saved writing style if available
+    if (savedWritingStyle) {
+      prompt += `\n\nThe user's writing style has been analyzed previously. When making edits or additions to their document, try to match this style:\n${savedWritingStyle}`;
     }
-  ];
+    
+    // Add custom prompt if set
+    const customPrompt = customPromptInput.value.trim();
+    if (customPrompt) {
+      prompt += `\n\nAdditional user instructions:\n${customPrompt}`;
+    }
+    
+    return prompt;
+  };
   
-  // Send message
-  sendBtn.addEventListener('click', async () => {
-    const text = userInput.value.trim();
+  // Conversation history
+  let conversation = [];
+  
+  const resetConversation = () => {
+    conversation = [{ role: 'system', content: getSystemPrompt() }];
+  };
+  resetConversation();
+  
+  // Send message function
+  const sendMessage = async (text, isQuickAction = false) => {
     if (!text) return;
     
     const provider = providerSelect.value;
@@ -636,20 +794,26 @@ When adding comments, the comment appears in the document margin attached to tha
     const localModel = localModelInput.value.trim();
     
     if (!apiKey && provider !== 'local') {
-      addMessage('system', 'Please enter your API key in Settings.', 'error');
+      addMessage('error', 'Please enter your API key in Settings.', 'Error');
+      settingsPanel.classList.add('open');
       return;
     }
     
     // Save settings
     localStorage.setItem(STORAGE_KEYS.apiKey, apiKey);
     
-    userInput.value = '';
-    updateSendButton();
+    if (!isQuickAction) {
+      userInput.value = '';
+      updateSendButton();
+    }
     
-    addMessage('user', text);
+    addMessage('user', text, 'You');
     setSendEnabled(false);
+    setQuickButtonsEnabled(false);
     setStatus('Thinking...');
     
+    // Reset conversation with fresh system prompt
+    resetConversation();
     conversation.push({ role: 'user', content: text });
     
     try {
@@ -663,7 +827,6 @@ When adding comments, the comment appears in the document margin attached to tha
         }
         
         if (response.tool_calls && response.tool_calls.length > 0) {
-          // Store assistant message with tool calls
           conversation.push({
             role: 'assistant',
             content: response.content || '',
@@ -679,7 +842,7 @@ When adding comments, the comment appears in the document margin attached to tha
             } catch (e) {}
             
             setStatus(`Running: ${toolName}...`);
-            addMessage('system', `Running ${toolName}...`);
+            addMessage('tool', `${toolName}(${Object.values(args).join(', ').slice(0, 50)}...)`, 'Tool');
             
             let result;
             try {
@@ -690,31 +853,52 @@ When adding comments, the comment appears in the document margin attached to tha
             
             const resultStr = typeof result === 'object' ? JSON.stringify(result) : String(result);
             
-            // Add tool result to conversation
             conversation.push({
               role: 'tool',
               tool_call_id: toolCall.id,
               content: resultStr
             });
             
-            addMessage('system', result.message || (result.content ? `Retrieved ${result.content.length} chars` : resultStr));
             setStatus('Processing...');
           }
         } else {
-          // Final response
-          addMessage('assistant', response.content?.trim() || 'Done.');
+          const aiResponse = response.content?.trim() || 'Done.';
+          addMessage('assistant', aiResponse, 'AI Assistant');
           conversation.push({ role: 'assistant', content: response.content || '' });
           processing = false;
           setStatus('Ready');
+          
+          // Check if this was a style analysis - save it
+          if (text.includes('analyze') && text.toLowerCase().includes('style')) {
+            savedWritingStyle = aiResponse;
+            localStorage.setItem(STORAGE_KEYS.writingStyle, savedWritingStyle);
+          }
         }
       }
     } catch (e) {
-      addMessage('system', `Error: ${e.message}`, 'error');
+      addMessage('error', `Error: ${e.message}`, 'Error');
       setStatus('Error');
-      conversation.pop(); // Remove failed user message
     } finally {
       setSendEnabled(true);
+      setQuickButtonsEnabled(true);
+      updateSendButton();
     }
+  };
+  
+  // Send button click
+  sendBtn.addEventListener('click', () => {
+    sendMessage(userInput.value.trim());
+  });
+  
+  // Quick action buttons
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const prompt = QUICK_ACTIONS[action];
+      if (prompt) {
+        sendMessage(prompt, true);
+      }
+    });
   });
   
   // Enter to send
@@ -726,5 +910,5 @@ When adding comments, the comment appears in the document margin attached to tha
   });
   
   // Initial message
-  addMessage('system', 'Click Settings to configure your AI provider, then describe the edits you want. Try: "Highlight all instances of important in yellow" or "Add a comment to the first paragraph saying needs review"');
+  addMessage('system', 'Configure your AI provider in Settings, then use Quick Actions or type a request. Your API key and settings are saved locally in your browser.', 'Welcome');
 });

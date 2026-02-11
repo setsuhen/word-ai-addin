@@ -14,7 +14,7 @@
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
       font-size: 14px;
       color: #1a1a1a;
-      background: #f5f5f7;
+      background: #f0f2f5;
       height: 100vh;
       overflow: hidden;
     }
@@ -27,8 +27,8 @@
     
     /* Header */
     .header {
-      padding: 12px 16px;
-      background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
       color: white;
       flex-shrink: 0;
     }
@@ -41,7 +41,7 @@
     
     .header h1 {
       margin: 0;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
     }
     
@@ -49,10 +49,10 @@
       background: rgba(255,255,255,0.15);
       border: none;
       color: white;
-      padding: 6px 10px;
+      padding: 5px 10px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -63,28 +63,28 @@
     }
     
     .settings-toggle svg {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
     }
     
     /* Settings Panel */
     .settings-panel {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.3s ease, padding 0.3s ease;
+      transition: max-height 0.3s ease;
       background: rgba(255,255,255,0.08);
       border-radius: 8px;
-      margin-top: 0;
     }
     
     .settings-panel.open {
-      max-height: 300px;
-      margin-top: 12px;
-      padding: 12px;
+      max-height: 500px;
+      margin-top: 10px;
+      padding: 10px;
+      overflow-y: auto;
     }
     
     .setting-row {
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     
     .setting-row:last-child {
@@ -93,53 +93,153 @@
     
     .setting-row label {
       display: block;
-      font-size: 11px;
-      font-weight: 500;
-      margin-bottom: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       opacity: 0.9;
     }
     
     .setting-row select,
-    .setting-row input {
+    .setting-row input,
+    .setting-row textarea {
       width: 100%;
-      padding: 8px 10px;
+      padding: 7px 10px;
       border: 1px solid rgba(255,255,255,0.3);
       border-radius: 6px;
       background: rgba(255,255,255,0.1);
       color: white;
-      font-size: 13px;
+      font-size: 12px;
+    }
+    
+    .setting-row textarea {
+      min-height: 60px;
+      resize: vertical;
+      font-family: inherit;
     }
     
     .setting-row select option {
-      background: #2d2d2d;
+      background: #1e3a5f;
       color: white;
     }
     
-    .setting-row input::placeholder {
+    .setting-row input::placeholder,
+    .setting-row textarea::placeholder {
       color: rgba(255,255,255,0.5);
     }
     
     .setting-row input:focus,
-    .setting-row select:focus {
+    .setting-row select:focus,
+    .setting-row textarea:focus {
       outline: none;
       border-color: #4a9eff;
     }
     
     .hint {
-      font-size: 10px;
+      font-size: 9px;
       opacity: 0.6;
-      margin-top: 4px;
+      margin-top: 3px;
     }
     
     .local-settings {
       display: none;
-      margin-top: 10px;
-      padding-top: 10px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid rgba(255,255,255,0.1);
     }
     
     .local-settings.visible {
       display: block;
+    }
+    
+    .privacy-note {
+      margin-top: 10px;
+      padding: 8px;
+      background: rgba(76, 175, 80, 0.2);
+      border-radius: 6px;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    
+    .privacy-note strong {
+      color: #81c784;
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+      padding: 8px 12px;
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+    
+    .quick-actions-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    
+    .quick-actions-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .quick-actions-toggle {
+      font-size: 10px;
+      color: #0078d4;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+    
+    .quick-actions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    
+    .quick-actions-grid.collapsed {
+      display: none;
+    }
+    
+    .quick-btn {
+      padding: 8px 10px;
+      font-size: 11px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      background: #fafafa;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .quick-btn:hover {
+      background: #f0f7ff;
+      border-color: #0078d4;
+    }
+    
+    .quick-btn.primary {
+      background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
+      color: white;
+      border: none;
+      grid-column: span 2;
+    }
+    
+    .quick-btn.primary:hover {
+      background: linear-gradient(135deg, #106ebe 0%, #005a9e 100%);
+    }
+    
+    .quick-btn-icon {
+      font-size: 14px;
     }
     
     /* Chat */
@@ -148,7 +248,8 @@
       display: flex;
       flex-direction: column;
       min-height: 0;
-      padding: 12px;
+      padding: 10px;
+      background: #f0f2f5;
     }
     
     .messages {
@@ -156,16 +257,17 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding-bottom: 8px;
+      gap: 8px;
+      padding-bottom: 6px;
     }
     
     .message {
-      padding: 10px 14px;
+      padding: 10px 12px;
       border-radius: 12px;
-      max-width: 95%;
+      max-width: 92%;
       line-height: 1.5;
       animation: fadeIn 0.2s ease;
+      position: relative;
     }
     
     @keyframes fadeIn {
@@ -173,31 +275,69 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
+    .message-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+    
     .message.user {
       align-self: flex-end;
-      background: #0078d4;
+      background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
       color: white;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .message.user .message-label {
+      color: rgba(255,255,255,0.8);
     }
     
     .message.assistant {
       align-self: flex-start;
       background: white;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 2px solid #4caf50;
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+    }
+    
+    .message.assistant .message-label {
+      color: #4caf50;
     }
     
     .message.system {
       align-self: center;
-      background: #f0f0f0;
-      color: #666;
+      background: #e8e8e8;
+      color: #555;
       font-size: 12px;
       text-align: center;
+      border-radius: 8px;
+      padding: 6px 12px;
+    }
+    
+    .message.system .message-label {
+      color: #888;
     }
     
     .message.error {
-      background: #fde8e8;
-      border: 1px solid #f5c6cb;
-      color: #721c24;
+      background: #ffebee;
+      border: 2px solid #f44336;
+      color: #c62828;
+    }
+    
+    .message.error .message-label {
+      color: #f44336;
+    }
+    
+    .message.tool {
+      align-self: center;
+      background: #fff3e0;
+      border: 1px solid #ff9800;
+      color: #e65100;
+      font-size: 11px;
+      padding: 6px 12px;
     }
     
     /* Input area */
@@ -207,64 +347,70 @@
       align-items: flex-end;
       flex-shrink: 0;
       padding-top: 8px;
-      border-top: 1px solid #e5e5e5;
+      border-top: 1px solid #ddd;
+      background: #f0f2f5;
     }
     
     .input-area textarea {
       flex: 1;
-      padding: 10px 14px;
-      border: 1px solid #d0d0d0;
-      border-radius: 8px;
-      resize: none;
+      padding: 12px 14px;
+      border: 2px solid #d0d0d0;
+      border-radius: 12px;
+      resize: vertical;
       font-family: inherit;
       font-size: 14px;
       line-height: 1.4;
-      max-height: 100px;
+      min-height: 50px;
+      max-height: 200px;
+      background: white;
     }
     
     .input-area textarea:focus {
       outline: none;
       border-color: #0078d4;
-      box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
     }
     
     .send-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 10px 16px;
-      background: #0078d4;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
       color: white;
       border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
+      border-radius: 12px;
       cursor: pointer;
       flex-shrink: 0;
-      transition: background 0.15s;
+      transition: all 0.15s;
     }
     
     .send-btn:hover:not(:disabled) {
-      background: #106ebe;
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 120, 212, 0.4);
     }
     
     .send-btn:disabled {
       background: #c0c0c0;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
     
     .send-btn svg {
-      width: 16px;
-      height: 16px;
+      width: 20px;
+      height: 20px;
     }
     
     /* Status */
     .status {
-      padding: 6px 12px;
-      font-size: 11px;
+      padding: 4px 12px;
+      font-size: 10px;
       color: #666;
       flex-shrink: 0;
-      min-height: 20px;
+      min-height: 18px;
+      background: #f0f2f5;
     }
   </style>
 </head>
@@ -272,7 +418,7 @@
   <div id="app">
     <header class="header">
       <div class="header-top">
-        <h1>AI Assistant</h1>
+        <h1>AI Writing Assistant</h1>
         <button class="settings-toggle" id="settings-toggle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
@@ -296,7 +442,7 @@
         <div class="setting-row">
           <label for="api-key">API Key</label>
           <input type="password" id="api-key" placeholder="Enter your API key..." autocomplete="off">
-          <div class="hint">Stored locally in your browser</div>
+          <div class="hint">Saved locally in your browser - never sent to any server except your chosen AI provider</div>
         </div>
         
         <div class="local-settings" id="local-settings">
@@ -309,13 +455,81 @@
             <input type="text" id="local-model" placeholder="local-model">
           </div>
         </div>
+        
+        <div class="setting-row">
+          <label for="custom-prompt">Custom System Prompt (Optional)</label>
+          <textarea id="custom-prompt" placeholder="Add your own instructions for the AI... e.g. 'Always maintain a professional tone' or 'Focus on conciseness'"></textarea>
+          <div class="hint">This will be added to the AI's base instructions</div>
+        </div>
+        
+        <div class="privacy-note">
+          <strong>Privacy:</strong> Your document content is sent directly from your browser to your chosen AI provider (OpenAI, Google, etc.). Nothing is stored on any external server, and this add-in has no backend - it's 100% client-side.
+        </div>
       </div>
     </header>
+    
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div class="quick-actions-header">
+        <span class="quick-actions-title">Quick Actions</span>
+        <button class="quick-actions-toggle" id="quick-toggle">Hide</button>
+      </div>
+      <div class="quick-actions-grid" id="quick-grid">
+        <button class="quick-btn primary" data-action="analyze">
+          <span class="quick-btn-icon">🔍</span>
+          Analyze My Writing Style
+        </button>
+        <button class="quick-btn" data-action="grammar">
+          <span class="quick-btn-icon">✓</span>
+          Grammar Check
+        </button>
+        <button class="quick-btn" data-action="spelling">
+          <span class="quick-btn-icon">📝</span>
+          Spelling Check
+        </button>
+        <button class="quick-btn" data-action="formal">
+          <span class="quick-btn-icon">👔</span>
+          Make Formal
+        </button>
+        <button class="quick-btn" data-action="casual">
+          <span class="quick-btn-icon">😊</span>
+          Make Casual
+        </button>
+        <button class="quick-btn" data-action="professional">
+          <span class="quick-btn-icon">💼</span>
+          Professional Tone
+        </button>
+        <button class="quick-btn" data-action="friendly">
+          <span class="quick-btn-icon">🤝</span>
+          Friendly Tone
+        </button>
+        <button class="quick-btn" data-action="clarity">
+          <span class="quick-btn-icon">💡</span>
+          Improve Clarity
+        </button>
+        <button class="quick-btn" data-action="concise">
+          <span class="quick-btn-icon">✂️</span>
+          Make Concise
+        </button>
+        <button class="quick-btn" data-action="shorter">
+          <span class="quick-btn-icon">📉</span>
+          Shorten
+        </button>
+        <button class="quick-btn" data-action="longer">
+          <span class="quick-btn-icon">📈</span>
+          Expand/Elaborate
+        </button>
+        <button class="quick-btn" data-action="suggestions">
+          <span class="quick-btn-icon">💬</span>
+          Get Suggestions
+        </button>
+      </div>
+    </div>
     
     <div class="chat-container">
       <div id="messages" class="messages"></div>
       <div class="input-area">
-        <textarea id="user-input" placeholder="e.g. Highlight all instances of 'important' in yellow, or Add a comment to the first paragraph..." rows="2"></textarea>
+        <textarea id="user-input" placeholder="Type your request... e.g. 'Fix all grammar errors' or 'Change the tone to be more professional'" rows="3"></textarea>
         <button id="send-btn" class="send-btn" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"></line>
